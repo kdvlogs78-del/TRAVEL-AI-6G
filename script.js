@@ -994,7 +994,7 @@ function removeTyping(id) {
 // Your Groq API key is safe on the server — never exposed to the browser.
 
 // ⬇️ Change this to your live server URL when you deploy
-const AI_PROXY_URL = 'http://localhost:3000/api/chat';
+const AI_PROXY_URL = 'https://travel-ai-server-btgt.onrender.com//api/chat';
 
 async function callClaudeAI(messages) {
     // Filter to only user/assistant roles
