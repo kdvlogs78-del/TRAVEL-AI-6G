@@ -25,7 +25,7 @@ let chatHistory = [
 function useCurrentLocation() {
     const btn = document.getElementById('useLocationBtn');
     const btnText = document.getElementById('locationBtnText');
-    const destInput = document.getElementById('wizDestInput');
+    const fromInput = document.getElementById('wizFromInput');
 
     if (!navigator.geolocation) {
         showToast('Geolocation is not supported by your browser.', 'error');
@@ -39,33 +39,38 @@ function useCurrentLocation() {
         async (position) => {
             const { latitude, longitude } = position.coords;
             try {
-                // Reverse geocode using open API
                 const res = await fetch(
-                    `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+                    `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10&addressdetails=1`
                 );
                 const data = await res.json();
-                const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || '';
-                const state = data.address?.state || '';
-                const country = data.address?.country || '';
+                const addr = data.address || {};
+                // Strictly pick the city-level name only
+                const city = addr.city
+                    || addr.town
+                    || addr.municipality
+                    || addr.village
+                    || addr.suburb
+                    || addr.county
+                    || '';
 
-                let locationStr = '';
-                if (city) locationStr = city;
-                if (state && state !== city) locationStr += (locationStr ? ', ' : '') + state;
-                if (country && country !== 'India') locationStr += ' (' + country + ')';
-
-                destInput.value = locationStr || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-                showToast(`📍 Location detected: ${locationStr || 'Your coordinates'}`, 'success');
+                if (city) {
+                    fromInput.value = city;
+                    showToast(`📍 From set to: ${city}`, 'success');
+                } else {
+                    fromInput.value = '';
+                    showToast('📍 Could not detect city. Please type it manually.', 'error');
+                }
             } catch (e) {
-                destInput.value = `Near ${latitude.toFixed(3)}°N, ${longitude.toFixed(3)}°E`;
-                showToast('📍 Coordinates captured. Refine if needed.', 'success');
+                fromInput.value = '';
+                showToast('📍 Location error. Please type your city.', 'error');
             }
             btn.classList.remove('loading');
-            btnText.textContent = '✓ Location Set';
-            setTimeout(() => { btnText.textContent = 'Use My Location'; }, 3000);
+            btnText.textContent = '✓ City Detected';
+            setTimeout(() => { btnText.textContent = '📍 Detect My City (sets From)'; }, 3000);
         },
         (err) => {
             btn.classList.remove('loading');
-            btnText.textContent = 'Use My Location';
+            btnText.textContent = '📍 Detect My City (sets From)';
             const msgs = {
                 1: 'Location access denied. Please allow location in your browser.',
                 2: 'Unable to detect location. Check GPS/network.',
@@ -293,6 +298,7 @@ function updateActiveNav() {
     <a href="#home"      class="nav-link" data-close>Home</a>
     <a href="#india-map" class="nav-link" data-close>India Map</a>
     <a href="#places"    class="nav-link" data-close>Places</a>
+    <a href="#all-cities" class="nav-link" data-close>All Cities</a>
     <a href="#planner"   class="nav-link" data-close>AI Planner</a>
     <a href="#about"     class="nav-link" data-close>About</a>
     <a href="#contact"   class="nav-link" data-close>Contact</a>
@@ -371,110 +377,13 @@ function initScrollReveal() {
 
 // ─── TRAVELERS ──────────────────────────────────────────────────
 
-// ─── INDIA MAP ──────────────────────────────────────────────────
+// ─── INDIA MAP — using SVG (Leaflet removed) ─────────────────────
 function initIndiaMap() {
-    if (!document.getElementById('indiaMap')) return;
-    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-
-    indiaMapInstance = L.map('indiaMap', {
-        center: [22.5, 82],
-        zoom: 4,
-        minZoom: 3,
-        maxZoom: 8,
-        zoomControl: true,
-        scrollWheelZoom: false,
-        dragging: true,
-        tap: true,
-        tapTolerance: 20,
-        touchZoom: true,
-        doubleClickZoom: false,
-        maxBounds: [[5, 65], [38, 100]],
-        maxBoundsViscosity: 1.0
-    });
-
-    const tileUrl = isDark
-        ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png';
-
-    L.tileLayer(tileUrl, {
-        attribution: '© OpenStreetMap © CARTO',
-        subdomains: 'abcd', maxZoom: 19
-    }).addTo(indiaMapInstance);
-
-    // Load India states GeoJSON
-    fetch('https://raw.githubusercontent.com/geohacker/india/master/state/india_state.geojson')
-        .then(r => r.json())
-        .then(data => {
-            stateLayer = L.geoJSON(data, {
-                style: getStateStyle,
-                onEachFeature: (feature, layer) => {
-                    const name = feature.properties.NAME_1 || feature.properties.state || '';
-                    layer.on({
-                        mouseover: e => {
-                            e.target.setStyle({
-                                fillColor: '#FEFACD',
-                                fillOpacity: 0.35,
-                                color: '#FEFACD',
-                                weight: 2
-                            });
-                            e.target.bindTooltip(name, { permanent: false, direction: 'center', className: 'state-tooltip' }).openTooltip();
-                        },
-                        mouseout: e => {
-                            stateLayer.resetStyle(e.target);
-                        },
-                        click: e => {
-                            L.DomEvent.stopPropagation(e);
-                            onStateClick(name);
-                        },
-                        touchend: e => {
-                            L.DomEvent.stopPropagation(e);
-                            onStateClick(name);
-                        }
-                    });
-                }
-            }).addTo(indiaMapInstance);
-        })
-        .catch(() => {
-            // Fallback: show a note
-            console.log('India GeoJSON failed to load. Trying fallback...');
-            loadIndiaMapFallback();
-        });
+    // SVG map is initialized inline in index.html
+    // onStateClick is available globally for SVG map click events
 }
 
-function getStateStyle() {
-    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-    return {
-        fillColor: isDark ? 'rgba(123,98,184,0.3)' : 'rgba(95,74,139,0.2)',
-        fillOpacity: 1,
-        color: isDark ? 'rgba(254,250,205,0.5)' : 'rgba(95,74,139,0.5)',
-        weight: 1
-    };
-}
 
-function loadIndiaMapFallback() {
-    // Try alternate GeoJSON source
-    fetch('https://raw.githubusercontent.com/Subhash9325/GeoJson-Data-of-Indian-States/master/Indian_States')
-        .then(r => r.json())
-        .then(data => {
-            stateLayer = L.geoJSON(data, {
-                style: getStateStyle,
-                onEachFeature: (feature, layer) => {
-                    const name = feature.properties.ST_NM || feature.properties.name || '';
-                    layer.on({
-                        mouseover: e => {
-                            e.target.setStyle({ fillColor: '#FEFACD', fillOpacity: 0.35, color: '#FEFACD', weight: 2 });
-                        },
-                        mouseout: e => stateLayer.resetStyle(e.target),
-                        click: e => { L.DomEvent.stopPropagation(e); onStateClick(name); },
-                        touchend: e => { L.DomEvent.stopPropagation(e); onStateClick(name); }
-                    });
-                }
-            }).addTo(indiaMapInstance);
-        })
-        .catch(() => {
-            console.log('Both GeoJSON sources failed. Map still navigable.');
-        });
-}
 
 async function onStateClick(stateName) {
     if (!stateName) return;
@@ -544,8 +453,9 @@ function planThisState() {
 
 // ─── WIZARD STATE ────────────────────────────────────────────────
 let wizCurrentStep = 1;
-const WIZ_TOTAL = 5;
+const WIZ_TOTAL = 6;
 const wizState = {
+    from: '',
     destination: '',
     dateFrom: '',
     dateTo: '',
@@ -554,7 +464,10 @@ const wizState = {
     adults: 2,
     children: 0,
     budget: 'normal',
-    accom: ['Resort']
+    customBudget: 0,
+    accom: ['Resort'],
+    food: '',
+    diet: []
 };
 
 function wizNextStep() {
@@ -597,10 +510,15 @@ function wizPrevStep() {
 }
 
 function wizValidate(step) {
-    if (step === 1 && !wizState.destination.trim()) {
-        showToast('📍 Please enter or select a destination first!');
-        document.getElementById('wizDestInput').focus();
-        return false;
+    if (step === 1) {
+        const dest = document.getElementById('wizDestInput')?.value?.trim() || '';
+        wizState.destination = dest;
+        wizState.from = document.getElementById('wizFromInput')?.value?.trim() || '';
+        if (!dest) {
+            showToast('📍 Please enter where you want to go!');
+            document.getElementById('wizDestInput').focus();
+            return false;
+        }
     }
     if (step === 2) {
         if (!wizState.dateFrom || !wizState.dateTo) {
@@ -613,6 +531,17 @@ function wizValidate(step) {
         }
     }
     return true;
+}
+
+function wizSwapRoutes() {
+    const fromEl = document.getElementById('wizFromInput');
+    const toEl = document.getElementById('wizDestInput');
+    if (!fromEl || !toEl) return;
+    const tmp = fromEl.value;
+    fromEl.value = toEl.value;
+    toEl.value = tmp;
+    wizState.from = fromEl.value;
+    wizState.destination = toEl.value;
 }
 
 function wizSelectDest(name) {
@@ -671,6 +600,10 @@ function wizToggleChip(el, group) {
         wizState.styles = el.classList.contains('selected')
             ? [...new Set([...wizState.styles, name])]
             : wizState.styles.filter(s => s !== name);
+    } else if (group === 'diet') {
+        wizState.diet = el.classList.contains('selected')
+            ? [...new Set([...wizState.diet, name])]
+            : wizState.diet.filter(s => s !== name);
     } else {
         wizState.accom = el.classList.contains('selected')
             ? [...new Set([...wizState.accom, name])]
@@ -694,10 +627,47 @@ function wizSelectBudget(el, val) {
     document.querySelectorAll('.wiz-budget-card').forEach(c => c.classList.remove('selected'));
     el.classList.add('selected');
     wizState.budget = val;
+    wizState.customBudget = 0;
+    const inp = document.getElementById('wizCustomBudget');
+    if (inp) inp.value = '';
+    const note = document.getElementById('wizCustomBudgetNote');
+    if (note) note.textContent = '';
+}
+
+function wizSetCustomBudget(val) {
+    const amount = parseInt(val, 10);
+    const note = document.getElementById('wizCustomBudgetNote');
+    if (!amount || amount < 500) {
+        wizState.customBudget = 0;
+        if (note) note.textContent = '';
+        return;
+    }
+    wizState.customBudget = amount;
+    // Deselect preset cards
+    document.querySelectorAll('.wiz-budget-card').forEach(c => c.classList.remove('selected'));
+    // Auto-classify for AI context
+    if (amount < 15000) wizState.budget = 'budget';
+    else if (amount < 40000) wizState.budget = 'normal';
+    else wizState.budget = 'luxury';
+    if (note) note.textContent = `✓ Custom budget set: ₹${amount.toLocaleString('en-IN')} per person`;
+}
+
+function wizSelectFood(el, val) {
+    document.querySelectorAll('.wiz-food-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    wizState.food = val;
 }
 
 function wizPopulateSummary() {
-    document.getElementById('wizSumDest').textContent = wizState.destination || '—';
+    const fromCity = document.getElementById('wizFromInput')?.value?.trim() || wizState.from || '—';
+    wizState.from = fromCity;
+    const destVal = document.getElementById('wizDestInput')?.value?.trim() || wizState.destination || '—';
+    wizState.destination = destVal;
+
+    const routeText = fromCity && fromCity !== '—'
+        ? `${fromCity} → ${destVal}`
+        : destVal;
+    document.getElementById('wizSumDest').textContent = routeText;
     document.getElementById('wizSumDuration').textContent = wizState.duration
         ? `${wizState.duration} days · ${wizFmtDate(wizState.dateFrom)} to ${wizFmtDate(wizState.dateTo)}`
         : '—';
@@ -705,8 +675,15 @@ function wizPopulateSummary() {
     document.getElementById('wizSumTravelers').textContent =
         `${wizState.adults} adult${wizState.adults > 1 ? 's' : ''}${wizState.children ? ` + ${wizState.children} child${wizState.children > 1 ? 'ren' : ''}` : ''}`;
     const bl = { budget: '🎒 Budget (₹5k–₹15k)', normal: '✈️ Mid-Range (₹15k–₹40k)', luxury: '👑 Luxury (₹40k+)' };
-    document.getElementById('wizSumBudget').textContent = bl[wizState.budget] || '—';
+    const budgetText = wizState.customBudget
+        ? `✏️ Custom — ₹${wizState.customBudget.toLocaleString('en-IN')} per person`
+        : (bl[wizState.budget] || '—');
+    document.getElementById('wizSumBudget').textContent = budgetText;
     document.getElementById('wizSumStyle').textContent = wizState.styles.length ? wizState.styles.join(' · ') : 'Not specified';
+    const foodLabels = { veg: '🥗 Vegetarian', both: '🍱 Both / No Preference' };
+    let foodText = foodLabels[wizState.food] || '—';
+    if (wizState.diet && wizState.diet.length) foodText += ' · ' + wizState.diet.join(', ');
+    document.getElementById('wizSumFood').textContent = foodText;
 }
 
 async function wizGeneratePlan() {
@@ -716,18 +693,63 @@ async function wizGeneratePlan() {
     document.getElementById('wizBackBtn').disabled = true;
 
     const dest = wizState.destination;
+    const from = wizState.from;
     const dur = wizState.duration || 5;
+    const people = wizState.adults + wizState.children;
     const style = wizState.styles.join(', ') || 'cultural';
+    const foodPref = wizState.food === 'veg' ? 'Vegetarian only' : 'Both veg and non-veg';
+    const dietExtra = wizState.diet && wizState.diet.length ? `, special needs: ${wizState.diet.join(', ')}` : '';
+    const fromLine = from ? `Traveling from: ${from}. ` : '';
+    const budgetPerPerson = wizState.customBudget || { budget: 10000, normal: 27000, luxury: 60000 }[wizState.budget] || 27000;
+    const budgetLabel = wizState.customBudget
+        ? `Custom ₹${wizState.customBudget.toLocaleString('en-IN')} per person`
+        : { budget: 'Budget (₹5k–₹15k)', normal: 'Mid-Range (₹15k–₹40k)', luxury: 'Luxury (₹40k+)' }[wizState.budget];
 
-    // Check if known city
     const cityKey = Object.keys(CITY_DATA).find(k => dest.toLowerCase().includes(k));
     const cityData = cityKey ? CITY_DATA[cityKey] : null;
 
     try {
-        const prompt = `Create a ${dur}-day travel itinerary for ${dest}, India for ${wizState.adults + wizState.children} traveler(s). Budget: ${wizState.budget}. Style: ${style}.
-Respond ONLY with valid JSON:
-{"city":"${dest}","tagline":"evocative line","famous":["place1","place2","place3","place4","place5"],"hidden":["gem1","gem2","gem3","gem4"],"food":[{"name":"dish","price":"₹XX"},{"name":"dish","price":"₹XX"},{"name":"dish","price":"₹XX"}],"day_plan":[{"day":1,"title":"title","morning":"activity","afternoon":"activity","evening":"activity","food":"food tip"}],"budget":{"accommodation":XXXX,"food":XXXX,"transport":XXXX,"activities":XXXX},"tips":"one practical tip"}
-Generate all ${dur} days. Budget numbers per person total in INR.`;
+        const prompt = `Create a detailed ${dur}-day travel itinerary for ${dest}, India.
+${fromLine}Travelers: ${people} (${wizState.adults} adult${wizState.adults > 1 ? 's' : ''}, ${wizState.children} children).
+Budget: ${budgetLabel} — ₹${budgetPerPerson.toLocaleString('en-IN')} per person total.
+Style: ${style}. Food: ${foodPref}${dietExtra}. Accommodation preference: ${wizState.accom.join(', ') || 'Resort'}.
+
+Respond ONLY with valid JSON (no markdown, no explanation):
+{
+  "city": "${dest}",
+  "tagline": "evocative one-liner",
+  "transport": {
+    "how_to_reach": "best way to reach from ${from || 'major city'} — train/flight/bus with name, duration, approx cost",
+    "train": "specific train name and number if applicable, e.g. Rajdhani Express 12951",
+    "local_transport": "best local transport inside ${dest}"
+  },
+  "hotels": [
+    {"name": "Hotel Name", "type": "Budget/Mid-range/Luxury", "area": "area name", "price_per_night": "₹XXXX", "why": "one reason"},
+    {"name": "Hotel Name", "type": "Budget/Mid-range/Luxury", "area": "area name", "price_per_night": "₹XXXX", "why": "one reason"},
+    {"name": "Hotel Name", "type": "Budget/Mid-range/Luxury", "area": "area name", "price_per_night": "₹XXXX", "why": "one reason"}
+  ],
+  "famous": ["place1", "place2", "place3", "place4", "place5"],
+  "hidden": ["gem1", "gem2", "gem3", "gem4"],
+  "food": [{"name": "dish", "price": "₹XX"}, {"name": "dish", "price": "₹XX"}, {"name": "dish", "price": "₹XX"}, {"name": "dish", "price": "₹XX"}],
+  "day_plan": [
+    {
+      "day": 1,
+      "title": "Day title",
+      "morning": {"time": "7:00 AM – 10:00 AM", "activity": "what to do", "place": "place name", "tip": "quick tip"},
+      "afternoon": {"time": "11:00 AM – 3:00 PM", "activity": "what to do", "place": "place name", "tip": "quick tip"},
+      "evening": {"time": "4:00 PM – 8:00 PM", "activity": "what to do", "place": "place name", "tip": "quick tip"},
+      "food": "recommended meal for the day with restaurant/stall name"
+    }
+  ],
+  "budget_per_person": {
+    "accommodation": XXXX,
+    "food": XXXX,
+    "transport": XXXX,
+    "activities": XXXX
+  },
+  "tips": "one practical insider tip"
+}
+Generate all ${dur} days. All budget numbers are per person in INR for the full trip.`;
 
         const response = await callClaudeAI([{ role: 'user', content: prompt }]);
         let planData;
@@ -774,45 +796,376 @@ function wizBuildFallback(destination, days, cityData) {
 }
 
 function wizRenderResults(plan, destination, duration) {
-    // Hide all panels, step bar, footer nav — show result
     document.querySelectorAll('.wiz-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('wizStepBar').style.display = 'none';
     document.getElementById('wizResultPanel').classList.add('active');
 
-    const total = Object.values(plan.budget || {}).reduce((a, b) => a + b, 0);
+    // Support both old budget key and new budget_per_person key
+    const budgetData = plan.budget_per_person || plan.budget || {};
+    const total = Object.values(budgetData).reduce((a, b) => a + b, 0);
     const people = wizState.adults + wizState.children;
+    const totalAll = total * people;
+    const budgetLabel = wizState.customBudget
+        ? `Custom ₹${wizState.customBudget.toLocaleString('en-IN')}/person`
+        : { budget: 'Budget 🎒', normal: 'Mid-Range ✈️', luxury: 'Luxury 👑' }[wizState.budget] || '';
+    const foodLabel = { veg: '🥗 Veg', both: '🍱 All Food' }[wizState.food] || '';
+
     document.getElementById('wizResultTitle').textContent = `Your ${plan.city || destination} Plan ✦`;
     document.getElementById('wizResultSubtitle').textContent =
-        `${duration} days · ${wizState.budget} budget · ${people} traveller${people > 1 ? 's' : ''}`;
+        `${duration} days · ${budgetLabel} · ${people} traveller${people > 1 ? 's' : ''}`;
+
+    const bTotal = total || 1;
+    const bPct = (v) => Math.round(((v || 0) / bTotal) * 100);
+
+    // Hotels HTML
+    const hotelsHtml = (plan.hotels && plan.hotels.length) ? `
+    <div class="plan-card plan-card-full">
+      <div class="plan-card-header plan-card-header--teal">
+        <span class="plan-card-icon">🏨</span>
+        <h4>Hotel Suggestions</h4>
+      </div>
+      <div class="plan-hotels-grid">
+        ${plan.hotels.map(h => `
+        <div class="plan-hotel-card">
+          <div class="plan-hotel-top">
+            <div class="plan-hotel-name">${h.name}</div>
+            <div class="plan-hotel-badge">${h.type || ''}</div>
+          </div>
+          <div class="plan-hotel-area">📍 ${h.area || ''}</div>
+          <div class="plan-hotel-price">₹ ${h.price_per_night || ''} <span>/night</span></div>
+          <div class="plan-hotel-why">✦ ${h.why || ''}</div>
+        </div>`).join('')}
+      </div>
+    </div>` : '';
+
+    // Transport HTML
+    const transportHtml = (plan.transport) ? `
+    <div class="plan-card plan-card-full plan-transport-card">
+      <div class="plan-card-header plan-card-header--blue">
+        <span class="plan-card-icon">🚆</span>
+        <h4>How to Get There</h4>
+      </div>
+      <div class="plan-transport-grid">
+        ${plan.transport.how_to_reach ? `<div class="plan-transport-item"><span class="plan-transport-icon">✈️🚆</span><div><div class="plan-transport-label">Best Route</div><div class="plan-transport-val">${plan.transport.how_to_reach}</div></div></div>` : ''}
+        ${plan.transport.train ? `<div class="plan-transport-item"><span class="plan-transport-icon">🚂</span><div><div class="plan-transport-label">Train</div><div class="plan-transport-val">${plan.transport.train}</div></div></div>` : ''}
+        ${plan.transport.local_transport ? `<div class="plan-transport-item"><span class="plan-transport-icon">🛺</span><div><div class="plan-transport-label">Local Transport</div><div class="plan-transport-val">${plan.transport.local_transport}</div></div></div>` : ''}
+      </div>
+    </div>` : '';
 
     document.getElementById('wizResultCards').innerHTML = `
-    <div class="result-card"><h4>🏛️ Famous Places</h4><ul>${(plan.famous || []).map(p => `<li>${p}</li>`).join('')}</ul></div>
-    <div class="result-card"><h4>💎 Hidden Gems</h4><ul>${(plan.hidden || []).map(p => `<li>${p}</li>`).join('')}</ul></div>
-    <div class="result-card"><h4>🍜 Must-Try Food</h4><ul>${(plan.food || []).map(f => `<li>${f.name} <span style="color:var(--lc);margin-left:auto">${f.price || ''}</span></li>`).join('')}</ul></div>
-    <div class="result-card"><h4>💰 Budget Breakdown</h4>
-      <div class="budget-breakdown">
-        <div class="budget-row"><span>🏨 Accommodation</span><span>₹${(plan.budget?.accommodation || 0).toLocaleString()}</span></div>
-        <div class="budget-row"><span>🍽️ Food</span><span>₹${(plan.budget?.food || 0).toLocaleString()}</span></div>
-        <div class="budget-row"><span>🚗 Transport</span><span>₹${(plan.budget?.transport || 0).toLocaleString()}</span></div>
-        <div class="budget-row"><span>🎭 Activities</span><span>₹${(plan.budget?.activities || 0).toLocaleString()}</span></div>
-        <div class="budget-row total"><span>Total Estimate</span><span>₹${total.toLocaleString()}</span></div>
+    <!-- QUICK STATS STRIP -->
+    <div class="plan-stats-strip">
+      <div class="plan-stat"><div class="plan-stat-val">${duration}</div><div class="plan-stat-lbl">Days</div></div>
+      <div class="plan-stat-div"></div>
+      <div class="plan-stat"><div class="plan-stat-val">${people}</div><div class="plan-stat-lbl">Traveller${people > 1 ? 's' : ''}</div></div>
+      <div class="plan-stat-div"></div>
+      <div class="plan-stat"><div class="plan-stat-val">₹${(total / 1000).toFixed(1)}k</div><div class="plan-stat-lbl">Per Person</div></div>
+      <div class="plan-stat-div"></div>
+      <div class="plan-stat"><div class="plan-stat-val">₹${(totalAll / 1000).toFixed(1)}k</div><div class="plan-stat-lbl">Total (${people})</div></div>
+    </div>
+
+    ${transportHtml}
+
+    <!-- TOP 2-COL GRID -->
+    <div class="plan-grid-2">
+      <!-- Famous Places -->
+      <div class="plan-card">
+        <div class="plan-card-header plan-card-header--teal">
+          <span class="plan-card-icon">🏛️</span>
+          <h4>Famous Places</h4>
+        </div>
+        <ul class="plan-list">
+          ${(plan.famous || []).map((p, i) => `
+          <li class="plan-list-item">
+            <span class="plan-list-num">${i + 1}</span>
+            <span>${p}</span>
+          </li>`).join('')}
+        </ul>
+      </div>
+
+      <!-- Hidden Gems -->
+      <div class="plan-card">
+        <div class="plan-card-header plan-card-header--gold">
+          <span class="plan-card-icon">💎</span>
+          <h4>Hidden Gems</h4>
+        </div>
+        <ul class="plan-list">
+          ${(plan.hidden || []).map((p, i) => `
+          <li class="plan-list-item">
+            <span class="plan-list-gem">✦</span>
+            <span>${p}</span>
+          </li>`).join('')}
+        </ul>
+      </div>
+
+      <!-- Must-Try Food -->
+      <div class="plan-card">
+        <div class="plan-card-header plan-card-header--orange">
+          <span class="plan-card-icon">🍜</span>
+          <h4>Must-Try Food</h4>
+        </div>
+        <div class="plan-food-list">
+          ${(plan.food || []).map(f => `
+          <div class="plan-food-item">
+            <span class="plan-food-name">${f.name}</span>
+            <span class="plan-food-price">${f.price || ''}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- Budget Breakdown per person -->
+      <div class="plan-card">
+        <div class="plan-card-header plan-card-header--purple">
+          <span class="plan-card-icon">💰</span>
+          <h4>Budget — Per Person</h4>
+        </div>
+        <div class="plan-budget-list">
+          <div class="plan-budget-row">
+            <span class="plan-budget-icon">🏨</span>
+            <div class="plan-budget-bar-wrap">
+              <div class="plan-budget-label-row"><span>Accommodation</span><span class="plan-budget-amt">₹${(budgetData.accommodation || 0).toLocaleString()}</span></div>
+              <div class="plan-budget-bar"><div class="plan-budget-fill" style="width:${bPct(budgetData.accommodation)}%;background:var(--lc)"></div></div>
+            </div>
+          </div>
+          <div class="plan-budget-row">
+            <span class="plan-budget-icon">🍽️</span>
+            <div class="plan-budget-bar-wrap">
+              <div class="plan-budget-label-row"><span>Food</span><span class="plan-budget-amt">₹${(budgetData.food || 0).toLocaleString()}</span></div>
+              <div class="plan-budget-bar"><div class="plan-budget-fill" style="width:${bPct(budgetData.food)}%;background:#f59e0b"></div></div>
+            </div>
+          </div>
+          <div class="plan-budget-row">
+            <span class="plan-budget-icon">🚆</span>
+            <div class="plan-budget-bar-wrap">
+              <div class="plan-budget-label-row"><span>Transport</span><span class="plan-budget-amt">₹${(budgetData.transport || 0).toLocaleString()}</span></div>
+              <div class="plan-budget-bar"><div class="plan-budget-fill" style="width:${bPct(budgetData.transport)}%;background:#8b5cf6"></div></div>
+            </div>
+          </div>
+          <div class="plan-budget-row">
+            <span class="plan-budget-icon">🎭</span>
+            <div class="plan-budget-bar-wrap">
+              <div class="plan-budget-label-row"><span>Activities</span><span class="plan-budget-amt">₹${(budgetData.activities || 0).toLocaleString()}</span></div>
+              <div class="plan-budget-bar"><div class="plan-budget-fill" style="width:${bPct(budgetData.activities)}%;background:#ec4899"></div></div>
+            </div>
+          </div>
+          <div class="plan-budget-total">
+            <span>Per Person</span><span>₹${total.toLocaleString()}</span>
+          </div>
+          ${people > 1 ? `<div class="plan-budget-total plan-budget-all" style="border-top:1px dashed var(--border);margin-top:.3rem;padding-top:.5rem;color:var(--uv)">
+            <span>Total (${people} people)</span><span>₹${totalAll.toLocaleString()}</span>
+          </div>` : ''}
+        </div>
       </div>
     </div>
-    <div class="result-card result-card-full"><h4>📅 Day-by-Day Itinerary</h4>
-      ${(plan.day_plan || []).map(d => `
-        <div class="day-plan-item">
-          <strong>Day ${d.day}${d.title ? ` — ${d.title}` : ''}</strong>
-          <p>🌅 ${d.morning}<br>☀️ ${d.afternoon}<br>🌙 ${d.evening}${d.food ? `<br>🍴 ${d.food}` : ''}</p>
-        </div>`).join('')}
+
+    ${hotelsHtml}
+
+    <!-- DAY-BY-DAY ITINERARY -->
+    <div class="plan-card plan-card-full">
+      <div class="plan-card-header plan-card-header--blue">
+        <span class="plan-card-icon">📅</span>
+        <h4>Day-by-Day Itinerary</h4>
+      </div>
+      <div class="plan-days-grid">
+        ${(plan.day_plan || []).map(d => {
+        // Support both old string format and new object format with time
+        const morning = typeof d.morning === 'object' ? d.morning : { time: '7:00 AM – 11:00 AM', activity: d.morning, place: '', tip: '' };
+        const afternoon = typeof d.afternoon === 'object' ? d.afternoon : { time: '11:00 AM – 3:00 PM', activity: d.afternoon, place: '', tip: '' };
+        const evening = typeof d.evening === 'object' ? d.evening : { time: '4:00 PM – 8:00 PM', activity: d.evening, place: '', tip: '' };
+        return `
+        <div class="plan-day-card">
+          <div class="plan-day-badge">Day ${d.day}</div>
+          <div class="plan-day-title">${d.title || `Day ${d.day} in ${plan.city || destination}`}</div>
+          <div class="plan-day-activities">
+            <div class="plan-day-act">
+              <span class="plan-day-act-dot plan-day-act-dot--morning"></span>
+              <div>
+                <span class="plan-act-label">🌅 Morning</span>
+                <span class="plan-act-time">${morning.time || ''}</span>
+                <p>${morning.activity || ''}${morning.place ? ` — <em>${morning.place}</em>` : ''}${morning.tip ? `<br><small class="plan-act-tip">💡 ${morning.tip}</small>` : ''}</p>
+              </div>
+            </div>
+            <div class="plan-day-act">
+              <span class="plan-day-act-dot plan-day-act-dot--afternoon"></span>
+              <div>
+                <span class="plan-act-label">☀️ Afternoon</span>
+                <span class="plan-act-time">${afternoon.time || ''}</span>
+                <p>${afternoon.activity || ''}${afternoon.place ? ` — <em>${afternoon.place}</em>` : ''}${afternoon.tip ? `<br><small class="plan-act-tip">💡 ${afternoon.tip}</small>` : ''}</p>
+              </div>
+            </div>
+            <div class="plan-day-act">
+              <span class="plan-day-act-dot plan-day-act-dot--evening"></span>
+              <div>
+                <span class="plan-act-label">🌙 Evening</span>
+                <span class="plan-act-time">${evening.time || ''}</span>
+                <p>${evening.activity || ''}${evening.place ? ` — <em>${evening.place}</em>` : ''}${evening.tip ? `<br><small class="plan-act-tip">💡 ${evening.tip}</small>` : ''}</p>
+              </div>
+            </div>
+            ${d.food ? `<div class="plan-day-act"><span class="plan-day-act-dot plan-day-act-dot--food"></span><div><span class="plan-act-label">🍽️ Food</span><p>${d.food}</p></div></div>` : ''}
+          </div>
+        </div>`;
+    }).join('')}
+      </div>
     </div>
-    ${plan.tips ? `<div class="result-card result-card-full"><h4>💡 Local Tips</h4><p style="color:var(--text-muted);font-size:.9rem;line-height:1.7">${plan.tips}</p></div>` : ''}`;
+
+    <!-- LOCAL TIPS -->
+    ${plan.tips ? `
+    <div class="plan-card plan-card-full plan-tips-card">
+      <div class="plan-tips-icon">💡</div>
+      <div>
+        <div class="plan-tips-label">Local Insider Tip</div>
+        <p class="plan-tips-text">${plan.tips}</p>
+      </div>
+    </div>` : ''}`;
 
     document.getElementById('wizFooter').innerHTML = `
       <button class="wiz-btn-back" onclick="wizReset()">← Plan Another</button>
       <span class="wiz-step-count">✦ Plan Generated</span>
-      <button class="wiz-btn-next" onclick="window.print()">📥 Save Plan</button>`;
+      <button class="wiz-btn-next wiz-btn-pdf" onclick="wizDownloadPDF()">📄 Download PDF</button>`;
 
     document.getElementById('wizResultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window._lastPlanData = { plan, destination, duration, wizState: { ...wizState }, total, totalAll, budgetLabel, foodLabel };
+}
+
+function wizDownloadPDF() {
+    const btn = document.querySelector('.wiz-btn-pdf');
+    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Generating...'; }
+
+    const { plan, destination, duration, total, budgetLabel, foodLabel } = window._lastPlanData || {};
+    const people = wizState.adults + wizState.children;
+    const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const isDark = theme === 'dark';
+
+    const bg = isDark ? '#0a1412' : '#ffffff';
+    const cardBg = isDark ? '#0f1e1b' : '#f8fffe';
+    const cardBorder = isDark ? '#1e3832' : '#d1ede8';
+    const text = isDark ? '#e8f5f2' : '#0f2e28';
+    const textMuted = isDark ? '#7fb8ac' : '#4a8c7e';
+    const accent = '#3a8c7e';
+    const gold = '#c9a84c';
+
+    const style = `
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap');
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: 'DM Sans', sans-serif; background: ${bg}; color: ${text}; padding: 32px; font-size: 13px; line-height: 1.6; }
+      .header { text-align: center; margin-bottom: 28px; padding: 28px; background: ${cardBg}; border-radius: 16px; border: 1px solid ${cardBorder}; }
+      .header-title { font-size: 28px; font-weight: 700; color: ${accent}; margin-bottom: 6px; }
+      .header-sub { color: ${textMuted}; font-size: 13px; }
+      .stats-strip { display: flex; gap: 12px; margin-bottom: 20px; }
+      .stat-box { flex: 1; background: ${cardBg}; border: 1px solid ${cardBorder}; border-radius: 12px; padding: 14px; text-align: center; }
+      .stat-val { font-size: 20px; font-weight: 700; color: ${accent}; }
+      .stat-lbl { font-size: 10px; color: ${textMuted}; margin-top: 2px; text-transform: uppercase; letter-spacing: .5px; }
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+      .card { background: ${cardBg}; border: 1px solid ${cardBorder}; border-radius: 14px; overflow: hidden; break-inside: avoid; }
+      .card-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid ${cardBorder}; }
+      .card-head-icon { font-size: 16px; }
+      .card-head-title { font-size: 13px; font-weight: 700; color: ${accent}; text-transform: uppercase; letter-spacing: .5px; }
+      .card-body { padding: 14px 16px; }
+      ul.plist { list-style: none; }
+      ul.plist li { padding: 5px 0; border-bottom: 1px solid ${cardBorder}; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+      ul.plist li:last-child { border-bottom: none; }
+      .num { width: 20px; height: 20px; background: ${accent}; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+      .gem { color: ${gold}; font-size: 11px; flex-shrink: 0; }
+      .food-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid ${cardBorder}; font-size: 12px; }
+      .food-row:last-child { border-bottom: none; }
+      .food-price { color: ${accent}; font-weight: 700; }
+      .bud-row { margin-bottom: 10px; }
+      .bud-label-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; }
+      .bud-bar { height: 6px; background: ${isDark ? '#1e3832' : '#e0f0ec'}; border-radius: 3px; overflow: hidden; }
+      .bud-fill { height: 100%; border-radius: 3px; }
+      .bud-total { margin-top: 12px; padding-top: 10px; border-top: 1px solid ${cardBorder}; display: flex; justify-content: space-between; font-weight: 700; color: ${accent}; font-size: 14px; }
+      .full-card { grid-column: 1 / -1; }
+      .days-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 14px 16px; }
+      .day-card { background: ${isDark ? '#0a1412' : '#f0fbf8'}; border: 1px solid ${cardBorder}; border-radius: 10px; padding: 12px; break-inside: avoid; }
+      .day-badge { display: inline-block; background: ${accent}; color: #fff; border-radius: 6px; padding: 2px 9px; font-size: 10px; font-weight: 700; margin-bottom: 5px; }
+      .day-title { font-size: 12px; font-weight: 700; color: ${text}; margin-bottom: 8px; }
+      .day-act { display: flex; gap: 7px; margin-bottom: 5px; align-items: flex-start; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+      .dot-m { background: #f59e0b; }
+      .dot-a { background: ${accent}; }
+      .dot-e { background: #8b5cf6; }
+      .dot-f { background: #ec4899; }
+      .act-label { font-size: 9px; font-weight: 700; text-transform: uppercase; color: ${textMuted}; letter-spacing: .4px; display: block; }
+      .act-text { font-size: 11px; color: ${text}; }
+      .tips-card { display: flex; gap: 14px; align-items: flex-start; padding: 16px; background: ${cardBg}; border: 1px solid ${cardBorder}; border-left: 4px solid ${gold}; border-radius: 14px; margin-top: 20px; }
+      .tips-icon { font-size: 22px; flex-shrink: 0; }
+      .tips-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: ${gold}; letter-spacing: .5px; margin-bottom: 4px; }
+      .tips-text { font-size: 12px; color: ${textMuted}; line-height: 1.6; }
+      .footer-note { text-align: center; margin-top: 24px; font-size: 10px; color: ${textMuted}; }
+      @media print { body { padding: 16px; } }
+    `;
+
+    const bPct = (v) => Math.round(((v || 0) / (total || 1)) * 100);
+    const city = plan.city || destination;
+
+    const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><title>${city} Trip Plan</title><style>${style}</style></head><body>
+    <div class="header">
+      <div class="header-title">✦ ${city} Trip Plan</div>
+      <div class="header-sub">${plan.tagline || `Discover the wonders of ${city}`}</div>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-box"><div class="stat-val">${duration}</div><div class="stat-lbl">Days</div></div>
+      <div class="stat-box"><div class="stat-val">${people}</div><div class="stat-lbl">Travellers</div></div>
+      <div class="stat-box"><div class="stat-val">₹${(total / 1000).toFixed(1)}k</div><div class="stat-lbl">Est. Budget</div></div>
+      <div class="stat-box"><div class="stat-val">${foodLabel || '🍽️'}</div><div class="stat-lbl">Food Pref</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><span class="card-head-icon">🏛️</span><span class="card-head-title">Famous Places</span></div>
+        <div class="card-body"><ul class="plist">${(plan.famous || []).map((p, i) => `<li><span class="num">${i + 1}</span>${p}</li>`).join('')}</ul></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-head-icon">💎</span><span class="card-head-title">Hidden Gems</span></div>
+        <div class="card-body"><ul class="plist">${(plan.hidden || []).map(p => `<li><span class="gem">✦</span>${p}</li>`).join('')}</ul></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-head-icon">🍜</span><span class="card-head-title">Must-Try Food</span></div>
+        <div class="card-body">${(plan.food || []).map(f => `<div class="food-row"><span>${f.name}</span><span class="food-price">${f.price || ''}</span></div>`).join('')}</div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-head-icon">💰</span><span class="card-head-title">Budget Breakdown</span></div>
+        <div class="card-body">
+          <div class="bud-row"><div class="bud-label-row"><span>🏨 Accommodation</span><span>₹${(plan.budget?.accommodation || 0).toLocaleString()}</span></div><div class="bud-bar"><div class="bud-fill" style="width:${bPct(plan.budget?.accommodation)}%;background:${accent}"></div></div></div>
+          <div class="bud-row"><div class="bud-label-row"><span>🍽️ Food</span><span>₹${(plan.budget?.food || 0).toLocaleString()}</span></div><div class="bud-bar"><div class="bud-fill" style="width:${bPct(plan.budget?.food)}%;background:#f59e0b"></div></div></div>
+          <div class="bud-row"><div class="bud-label-row"><span>🚗 Transport</span><span>₹${(plan.budget?.transport || 0).toLocaleString()}</span></div><div class="bud-bar"><div class="bud-fill" style="width:${bPct(plan.budget?.transport)}%;background:#8b5cf6"></div></div></div>
+          <div class="bud-row"><div class="bud-label-row"><span>🎭 Activities</span><span>₹${(plan.budget?.activities || 0).toLocaleString()}</span></div><div class="bud-bar"><div class="bud-fill" style="width:${bPct(plan.budget?.activities)}%;background:#ec4899"></div></div></div>
+          <div class="bud-total"><span>Total Estimate</span><span>₹${total.toLocaleString()}</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card full-card">
+      <div class="card-head"><span class="card-head-icon">📅</span><span class="card-head-title">Day-by-Day Itinerary</span></div>
+      <div class="days-grid">
+        ${(plan.day_plan || []).map(d => `
+        <div class="day-card">
+          <div class="day-badge">Day ${d.day}</div>
+          <div class="day-title">${d.title || `Day ${d.day} in ${city}`}</div>
+          <div class="day-act"><span class="dot dot-m"></span><div><span class="act-label">Morning</span><span class="act-text">${d.morning}</span></div></div>
+          <div class="day-act"><span class="dot dot-a"></span><div><span class="act-label">Afternoon</span><span class="act-text">${d.afternoon}</span></div></div>
+          <div class="day-act"><span class="dot dot-e"></span><div><span class="act-label">Evening</span><span class="act-text">${d.evening}</span></div></div>
+          ${d.food ? `<div class="day-act"><span class="dot dot-f"></span><div><span class="act-label">Food</span><span class="act-text">${d.food}</span></div></div>` : ''}
+        </div>`).join('')}
+      </div>
+    </div>
+    ${plan.tips ? `<div class="tips-card"><span class="tips-icon">💡</span><div><div class="tips-label">Local Insider Tip</div><p class="tips-text">${plan.tips}</p></div></div>` : ''}
+    <div class="footer-note">Generated by Plan Your Trip India · planyyourtripindia.com</div>
+    </body></html>`;
+
+    const printWin = window.open('', '_blank', 'width=900,height=700');
+    if (!printWin) {
+        showToast('Please allow pop-ups to download PDF', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '📄 Download PDF'; }
+        return;
+    }
+    printWin.document.write(htmlContent);
+    printWin.document.close();
+    printWin.onload = () => {
+        setTimeout(() => {
+            printWin.print();
+            printWin.close();
+            if (btn) { btn.disabled = false; btn.innerHTML = '📄 Download PDF'; }
+        }, 500);
+    };
 }
 
 function wizReset() {
@@ -989,38 +1342,42 @@ function removeTyping(id) {
     if (el) el.remove();
 }
 
-// ─── GROQ AI (Secure — calls your backend proxy) ─────────────
-// Replace your existing callClaudeAI function in script.js with this.
-// Your Groq API key is safe on the server — never exposed to the browser.
-
-// ⬇️ Change this to your live server URL when you deploy
-const AI_PROXY_URL = 'https://travel-ai-server-btgt.onrender.com/api/chat';
-
+// ─── CLAUDE API ─────────────────────────────────────────────────
 async function callClaudeAI(messages) {
-    // Filter to only user/assistant roles
+    // Filter to only user/assistant roles for the API
     const apiMessages = messages
         .filter(m => m.role === 'user' || m.role === 'assistant')
         .map(m => ({ role: m.role, content: m.content }));
 
+    // Ensure starts with user
     if (!apiMessages.length || apiMessages[0].role !== 'user') {
         throw new Error('Invalid message format');
     }
 
-    // ✅ Calls YOUR proxy server — Groq key stays secret on server
-    const response = await fetch(AI_PROXY_URL, {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiMessages })
+        body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1000,
+            system: `You are India Travel AI — a knowledgeable, friendly travel planning assistant specializing in India. 
+You help travelers plan trips across India's 28+ states. You know about destinations, itineraries, budgets, local food, hidden gems, culture, and practical travel tips.
+Keep responses concise, practical, and well-formatted. Use emojis sparingly for readability.
+When asked for JSON, respond ONLY with valid JSON, no markdown fences or extra text.`,
+            messages: apiMessages
+        })
     });
 
     if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err?.error || `Server Error: ${response.status}`);
+        throw new Error(err?.error?.message || `API Error: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.reply || '';
+    const content = data.content || [];
+    return content.filter(b => b.type === 'text').map(b => b.text).join('\n') || '';
 }
+
 // ─── CONTACT FORM ───────────────────────────────────────────────
 function submitContact(event) {
     event.preventDefault();
