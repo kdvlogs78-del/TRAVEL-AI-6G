@@ -1,4 +1,3 @@
-
 /* ============================================================
    PLAN YOUR TRIP INDIA — Complete JavaScript
    AI Chatbot · Clickable India Map · Light/Dark Theme
@@ -11,16 +10,10 @@ let currentStateClicked = '';
 let indiaMapInstance = null;
 let stateLayer = null;
 let deferredInstallPrompt = null;
-let chatHistory = [
-    {
-        role: 'user',
-        content: 'You are India Travel AI, a helpful and knowledgeable travel planning assistant specializing in India. You help travelers with destinations, itineraries, budgets, local food, culture, hidden gems, and travel tips across all 28+ Indian states. Be friendly, use emojis sparingly, and keep responses concise and practical. Format nicely with line breaks when listing items.'
-    },
-    {
-        role: 'assistant',
-        content: 'Namaste! 🙏 I\'m your India Travel AI. I\'m here to help you plan the perfect trip across India\'s incredible 28+ states. Ask me about destinations, itineraries, budgets, local food, hidden gems, or anything about travelling in Incredible India!'
-    }
-];
+
+// chatHistory holds only live conversation turns.
+// System prompt is handled by the backend proxy.
+let chatHistory = [];
 
 // ─── CURRENT LOCATION ────────────────────────────────────────────
 function useCurrentLocation() {
@@ -1261,8 +1254,9 @@ async function sendMessage() {
         removeTyping(typingId);
         appendChatMsg('bot', '🤖', response);
         chatHistory.push({ role: 'assistant', content: response });
-        if (chatHistory.length > 24) {
-            chatHistory = [chatHistory[0], chatHistory[1], ...chatHistory.slice(-20)];
+        // FIX 3: Trim without locking old messages
+        if (chatHistory.length > 20) {
+            chatHistory = chatHistory.slice(-20);
         }
     } catch (err) {
         removeTyping(typingId);
@@ -1310,24 +1304,25 @@ function removeTyping(id) {
     if (el) el.remove();
 }
 
-// ─── GROQ AI (Secure — calls your backend proxy) ─────────────
-// Replace your existing callClaudeAI function in script.js with this.
-// Your Groq API key is safe on the server — never exposed to the browser.
-
-// ⬇️ Change this to your live server URL when you deploy
+// ═══════════════════════════════════════════════════════════════
+//  GROQ AI — calls your secure backend proxy
+//  Server repo: https://github.com/yourusername/travel-ai-server
+//  ⬇️ Update AI_PROXY_URL to your deployed server URL
+// ═══════════════════════════════════════════════════════════════
 const AI_PROXY_URL = 'https://travel-ai-server-btgt.onrender.com/api/chat';
 
-async function callClaudeAI(messages) {
+// FIX 1: Renamed from callClaudeAI → callGroqAI so all callers work
+async function callGroqAI(messages) {
     // Filter to only user/assistant roles
     const apiMessages = messages
         .filter(m => m.role === 'user' || m.role === 'assistant')
         .map(m => ({ role: m.role, content: m.content }));
 
-    if (!apiMessages.length || apiMessages[0].role !== 'user') {
-        throw new Error('Invalid message format');
+    // FIX 4: Only check for empty messages, no fragile role check
+    if (!apiMessages.length) {
+        throw new Error('No messages to send');
     }
 
-    // ✅ Calls YOUR proxy server — Groq key stays secret on server
     const response = await fetch(AI_PROXY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1371,7 +1366,6 @@ document.addEventListener('keydown', e => {
 // ════════════════════════════════════════════════
 //  AUTH — Login / Sign Up System
 // ════════════════════════════════════════════════
-
 let currentUser = JSON.parse(localStorage.getItem('pyti_user') || 'null');
 
 window.addEventListener('DOMContentLoaded', () => {
