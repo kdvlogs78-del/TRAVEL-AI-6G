@@ -1,4 +1,4 @@
-function initWelcomeOverlay() {
+
 /* ============================================================
    PLAN YOUR TRIP INDIA — Complete JavaScript
    AI Chatbot · Clickable India Map · Light/Dark Theme
