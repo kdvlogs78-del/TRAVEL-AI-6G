@@ -1310,37 +1310,15 @@ function removeTyping(id) {
     if (el) el.remove();
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  GROQ API  —  replaces the previous Anthropic / Claude call
-//  Model: llama-3.3-70b-versatile  (fast, free-tier friendly)
-//  Docs : https://console.groq.com/docs/openai
-// ═══════════════════════════════════════════════════════════════
+// ─── GROQ AI (Secure — calls your backend proxy) ─────────────
+// Replace your existing callClaudeAI function in script.js with this.
+// Your Groq API key is safe on the server — never exposed to the browser.
 
-// ⚠️  IMPORTANT — SECURITY NOTE ──────────────────────────────────
-//  Never hard-code your real Groq API key in client-side JS that
-//  ships to production.  For a public site either:
-//    • Use a backend proxy  (recommended)
-//    • Use environment variables injected at build time
-//    • Restrict the key by domain in the Groq console
-//
-//  Replace the placeholder below with your actual Groq API key.
-//  Get one free at: https://console.groq.com/keys
-// ─────────────────────────────────────────────────────────────────
-const GROQ_API_KEY = 'YOUR_GROQ_API_KEY_HERE'; // 🔑 Replace this!
+// ⬇️ Change this to your live server URL when you deploy
+const AI_PROXY_URL = 'https://travel-ai-server-btgt.onrender.com/api/chat';
 
-// Groq model to use — llama-3.3-70b-versatile is recommended:
-//   • Very fast (< 1 s for short prompts)
-//   • High quality, handles JSON well
-//   • Other options: mixtral-8x7b-32768 | gemma2-9b-it | llama3-8b-8192
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
-
-const GROQ_SYSTEM_PROMPT = `You are India Travel AI — a knowledgeable, friendly travel planning assistant specializing in India.
-You help travelers plan trips across India's 28+ states. You know about destinations, itineraries, budgets, local food, hidden gems, culture, and practical travel tips.
-Keep responses concise, practical, and well-formatted. Use emojis sparingly for readability.
-When asked for JSON, respond ONLY with valid JSON, no markdown fences or extra text.`;
-
-async function callGroqAI(messages) {
-    // Filter to only user/assistant roles for the API
+async function callClaudeAI(messages) {
+    // Filter to only user/assistant roles
     const apiMessages = messages
         .filter(m => m.role === 'user' || m.role === 'assistant')
         .map(m => ({ role: m.role, content: m.content }));
@@ -1349,32 +1327,20 @@ async function callGroqAI(messages) {
         throw new Error('Invalid message format');
     }
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    // ✅ Calls YOUR proxy server — Groq key stays secret on server
+    const response = await fetch(AI_PROXY_URL, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_API_KEY}`
-        },
-        body: JSON.stringify({
-            model: GROQ_MODEL,
-            max_tokens: 2048,
-            temperature: 0.7,
-            messages: [
-                { role: 'system', content: GROQ_SYSTEM_PROMPT },
-                ...apiMessages
-            ]
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: apiMessages })
     });
 
     if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(
-            err?.error?.message || `Groq API Error ${response.status}: ${response.statusText}`
-        );
+        throw new Error(err?.error || `Server Error: ${response.status}`);
     }
 
     const data = await response.json();
-    return data?.choices?.[0]?.message?.content?.trim() || '';
+    return data.reply || '';
 }
 
 // ─── CONTACT FORM ───────────────────────────────────────────────
