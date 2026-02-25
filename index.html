@@ -137,7 +137,7 @@
       font-family: inherit;
       cursor: pointer;
       transition: all 0.25s ease;
-      box-shadow: 0 4px 20px rgba(171,209,198,0.12);
+      box-shadow: 0 4px 20px rgba(171, 209, 198, 0.12);
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
     }
@@ -147,7 +147,7 @@
       border-color: var(--uv);
       color: var(--uv);
       transform: translateY(-2px);
-      box-shadow: 0 8px 28px rgba(171,209,198,0.22);
+      box-shadow: 0 8px 28px rgba(171, 209, 198, 0.22);
     }
 
     .btn-open-cities-drawer .drawer-btn-icon {
@@ -220,7 +220,7 @@
       flex-direction: column;
       transform: translateX(100%);
       transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-      box-shadow: -8px 0 48px rgba(0,0,0,0.55);
+      box-shadow: -8px 0 48px rgba(0, 0, 0, 0.55);
     }
 
     .cities-drawer.open {
@@ -241,8 +241,9 @@
         border-top: 1px solid var(--border);
         border-radius: 22px 22px 0 0;
         transform: translateY(100%);
-        box-shadow: 0 -8px 48px rgba(0,0,0,0.55);
+        box-shadow: 0 -8px 48px rgba(0, 0, 0, 0.55);
       }
+
       .cities-drawer.open {
         transform: translateY(0);
       }
@@ -267,12 +268,13 @@
         align-items: stretch;
         gap: 0.6rem;
       }
+
       .cities-drawer-header::before {
         content: '';
         display: block;
         width: 40px;
         height: 4px;
-        background: rgba(255,255,255,0.15);
+        background: rgba(255, 255, 255, 0.15);
         border-radius: 2px;
         margin: 0 auto;
         flex-shrink: 0;
@@ -369,7 +371,9 @@
       border-bottom: 1px solid var(--border);
     }
 
-    .cities-region-tabs::-webkit-scrollbar { display: none; }
+    .cities-region-tabs::-webkit-scrollbar {
+      display: none;
+    }
 
     .city-region-tab {
       flex-shrink: 0;
@@ -406,7 +410,9 @@
       border-bottom: 1px solid var(--border);
     }
 
-    .cities-count-badge strong { color: var(--uv); }
+    .cities-count-badge strong {
+      color: var(--uv);
+    }
 
     /* ── SCROLLABLE CITY GRID ── */
     .cities-drawer-body {
@@ -457,7 +463,9 @@
       flex-shrink: 0;
     }
 
-    .city-list-info { min-width: 0; }
+    .city-list-info {
+      min-width: 0;
+    }
 
     .city-list-name {
       font-weight: 600;
@@ -483,6 +491,334 @@
       grid-column: 1 / -1;
     }
   </style>
+  <!-- ═══ TERMS & CONDITIONS STYLES ═══ -->
+  <style>
+    /* ── T&C Backdrop ── */
+    #tcBackdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      background: rgba(4, 12, 10, 0.88);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+
+    #tcBackdrop.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* ── T&C Modal Box ── */
+    #tcModal {
+      background: var(--bg, #0a1412);
+      border: 1px solid var(--lc-border, rgba(171, 209, 198, 0.26));
+      border-radius: 20px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 90dvh;
+      max-height: 90svh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 32px 80px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(171, 209, 198, 0.08);
+      transform: translateY(28px) scale(0.97);
+      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    #tcBackdrop.open #tcModal {
+      transform: translateY(0) scale(1);
+    }
+
+    /* ── Header ── */
+    .tc-header {
+      padding: 1.5rem 1.75rem 1.1rem;
+      border-bottom: 1px solid var(--border, rgba(171, 209, 198, 0.12));
+      flex-shrink: 0;
+    }
+
+    .tc-logo-row {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .tc-logo-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--uv-deeper, #4d8a7c), var(--uv, #ABD1C6));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .tc-logo-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--lc, #ABD1C6);
+    }
+
+    .tc-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.55rem;
+      font-weight: 700;
+      color: var(--text, #e8f5f2);
+      line-height: 1.2;
+    }
+
+    .tc-title em {
+      font-style: italic;
+      color: var(--uv, #ABD1C6);
+    }
+
+    .tc-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-dim, #5e9589);
+      margin-top: 0.25rem;
+    }
+
+    /* ── Scrollable Body ── */
+    .tc-body {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 1.25rem 1.75rem;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .tc-body::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .tc-body::-webkit-scrollbar-thumb {
+      background: var(--border, rgba(171, 209, 198, 0.12));
+      border-radius: 4px;
+    }
+
+    .tc-section {
+      margin-bottom: 1.1rem;
+    }
+
+    .tc-section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--uv, #ABD1C6);
+      margin-bottom: 0.45rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .tc-section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border, rgba(171, 209, 198, 0.12));
+    }
+
+    .tc-text {
+      font-size: 0.84rem;
+      color: var(--text-muted, #9dc4bc);
+      line-height: 1.7;
+    }
+
+    .tc-highlight {
+      background: var(--uv-mist, rgba(171, 209, 198, 0.18));
+      border: 1px solid var(--lc-border, rgba(171, 209, 198, 0.26));
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      margin-top: 0.85rem;
+      font-size: 0.8rem;
+      color: var(--lc, #ABD1C6);
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-start;
+    }
+
+    .tc-highlight-icon {
+      font-size: 1rem;
+      flex-shrink: 0;
+      margin-top: 0.05rem;
+    }
+
+    /* ── Footer / Actions ── */
+    .tc-footer {
+      padding: 1rem 1.75rem 1.5rem;
+      border-top: 1px solid var(--border, rgba(171, 209, 198, 0.12));
+      flex-shrink: 0;
+      background: var(--bg-2, #101e1b);
+    }
+
+    .tc-checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      margin-bottom: 1rem;
+    }
+
+    .tc-checkbox {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--uv, #ABD1C6);
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+      cursor: pointer;
+    }
+
+    .tc-checkbox-label {
+      font-size: 0.8rem;
+      color: var(--text-muted, #9dc4bc);
+      line-height: 1.5;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .tc-checkbox-label strong {
+      color: var(--text, #e8f5f2);
+    }
+
+    .tc-actions {
+      display: flex;
+      gap: 0.65rem;
+    }
+
+    .btn-tc-decline {
+      flex: 1;
+      padding: 0.7rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border, rgba(171, 209, 198, 0.12));
+      background: transparent;
+      color: var(--text-dim, #5e9589);
+      font-size: 0.85rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .btn-tc-decline:hover {
+      border-color: var(--text-dim);
+      color: var(--text);
+    }
+
+    .btn-tc-accept {
+      flex: 2;
+      padding: 0.7rem 1rem;
+      border-radius: 10px;
+      border: none;
+      background: var(--uv, #ABD1C6);
+      color: #0a1412;
+      font-size: 0.9rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.22s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .btn-tc-accept.enabled {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .btn-tc-accept.enabled:hover {
+      background: var(--uv-light, #c8e4de);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(171, 209, 198, 0.3);
+    }
+
+    .btn-tc-accept.enabled:active {
+      transform: translateY(0);
+    }
+
+    /* ── Mobile — slides up from bottom ── */
+    @media (max-width: 600px) {
+      #tcBackdrop {
+        align-items: flex-end;
+        padding: 0;
+      }
+
+      #tcModal {
+        border-radius: 22px 22px 0 0;
+        max-width: 100%;
+        max-height: 94dvh;
+        max-height: 94svh;
+        transform: translateY(100%);
+      }
+
+      #tcBackdrop.open #tcModal {
+        transform: translateY(0) scale(1);
+      }
+
+      .tc-header {
+        padding: 1.1rem 1.25rem 0.85rem;
+      }
+
+      .tc-header::before {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 2px;
+        margin: 0 auto 0.85rem;
+      }
+
+      .tc-body {
+        padding: 1rem 1.25rem;
+      }
+
+      .tc-footer {
+        padding: 0.85rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
+      }
+
+      .tc-title {
+        font-size: 1.3rem;
+      }
+    }
+
+    /* ── Footer link ── */
+    .btn-footer-tc {
+      background: none;
+      border: none;
+      color: var(--text-dim, #5e9589);
+      font-size: 0.78rem;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      transition: color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-footer-tc:hover {
+      color: var(--uv, #ABD1C6);
+    }
+  </style>
+
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="mobile.css" />
 
@@ -936,6 +1272,80 @@
 </head>
 
 <body>
+
+  <!-- ═══════════════════════════════════════════════════════
+       TERMS & CONDITIONS MODAL
+       Shows on first visit. Also openable via footer link.
+       ═══════════════════════════════════════════════════════ -->
+  <div id="tcBackdrop" role="dialog" aria-modal="true" aria-labelledby="tcModalTitle">
+    <div id="tcModal">
+
+      <!-- Header -->
+      <div class="tc-header">
+        <div class="tc-logo-row">
+          <div class="tc-logo-icon">🗺️</div>
+          <span class="tc-logo-text">Plan Your Trip India</span>
+        </div>
+        <h2 class="tc-title" id="tcModalTitle">Terms &amp; <em>Conditions</em></h2>
+        <p class="tc-subtitle">Please read and accept before continuing</p>
+      </div>
+
+      <!-- Scrollable content -->
+      <div class="tc-body" id="tcBody">
+
+        <div class="tc-section">
+          <div class="tc-section-title">✦ Our Service</div>
+          <p class="tc-text">By using <strong>Plan Your Trip India</strong>, you agree that our platform provides
+            <strong>travel planning guidance and informational services only</strong>. We offer personalised travel
+            suggestions, destination details, and itineraries to help users plan their trips within India.</p>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">🚫 What We Don't Do</div>
+          <p class="tc-text">We do <strong>not</strong> provide ticket bookings, hotel reservations, transportation
+            arrangements, or handle any payments. All bookings and travel-related decisions must be made directly with
+            third-party service providers <strong>at your own responsibility</strong>.</p>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">⚠️ Accuracy & Liability</div>
+          <p class="tc-text">While we try to provide accurate information, we do <strong>not guarantee completeness or
+              accuracy</strong> at all times. Plan Your Trip India is not responsible for any losses, cancellations, or
+            issues arising from third-party services or travel decisions.</p>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">🔒 Privacy & Data</div>
+          <p class="tc-text">Your travel preferences and search data are used solely to improve your planning experience
+            on this platform. We do not sell or share personal data with third parties for marketing purposes.</p>
+        </div>
+
+        <div class="tc-highlight">
+          <span class="tc-highlight-icon">✅</span>
+          <span>By continuing to use this website, you accept these terms and conditions. These terms may be updated
+            periodically — please review them when revisiting.</span>
+        </div>
+
+      </div>
+
+      <!-- Footer with checkbox + buttons -->
+      <div class="tc-footer">
+        <label class="tc-checkbox-row" for="tcAgreeCheck">
+          <input type="checkbox" class="tc-checkbox" id="tcAgreeCheck" onchange="tcToggleAccept(this)" />
+          <span class="tc-checkbox-label">I have read and agree to the <strong>Terms &amp; Conditions</strong> of Plan
+            Your Trip India.</span>
+        </label>
+        <div class="tc-actions">
+          <button class="btn-tc-decline" onclick="tcDecline()">Decline</button>
+          <button class="btn-tc-accept" id="btnTcAccept" onclick="tcAccept()">
+            <span>✓</span> Accept &amp; Continue
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <!-- /T&C modal -->
 
   <!-- WELCOME OVERLAY -->
   <div id="welcomeOverlay">
@@ -1581,7 +1991,8 @@
       <div class="section-header-wrap">
         <div class="section-label-tag">Explore All</div>
         <h2 class="section-title-main">All Cities<br><em>of India</em></h2>
-        <p class="section-sub-text">Discover 100+ destinations across every state — click any city to plan your trip.</p>
+        <p class="section-sub-text">Discover 100+ destinations across every state — click any city to plan your trip.
+        </p>
       </div>
 
       <div class="cities-drawer-trigger-wrap">
@@ -1590,7 +2001,10 @@
           <span class="drawer-btn-icon">🏙️</span>
           Browse All Cities
           <span class="drawer-btn-count">124+ destinations</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.6"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round" style="opacity:.6">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
         </button>
 
         <!-- Quick region shortcuts -->
@@ -1619,14 +2033,15 @@
       <!-- Search -->
       <div class="cities-search-wrap">
         <span class="cities-search-icon">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
           </svg>
         </span>
-        <input type="text" class="cities-search-input" id="citySearchInput"
-          placeholder="Search city, state or region…"
-          oninput="filterCities(this.value)"
-          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+        <input type="text" class="cities-search-input" id="citySearchInput" placeholder="Search city, state or region…"
+          oninput="filterCities(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off"
+          spellcheck="false" />
       </div>
 
       <!-- Region tabs -->
@@ -1821,7 +2236,8 @@
         </div>
       </div>
       <div class="footer-bottom">
-        <p>© 2025 Plan Your Trip India. Crafted with ❤ for Incredible India.</p>
+        <p>© 2025 Plan Your Trip India. Crafted with ❤ for Incredible India. &nbsp;·&nbsp; <button class="btn-footer-tc"
+            onclick="openTC()">Terms &amp; Conditions</button></p>
       </div>
     </footer>
 
@@ -2267,7 +2683,7 @@
   <script>
     /* ── Cities Drawer ─────────────────────────────────────── */
     window.openCitiesDrawer = function (region) {
-      var drawer   = document.getElementById('citiesDrawer');
+      var drawer = document.getElementById('citiesDrawer');
       var backdrop = document.getElementById('citiesDrawerBackdrop');
       if (!drawer) return;
 
@@ -2304,7 +2720,7 @@
     };
 
     window.closeCitiesDrawer = function () {
-      var drawer   = document.getElementById('citiesDrawer');
+      var drawer = document.getElementById('citiesDrawer');
       var backdrop = document.getElementById('citiesDrawerBackdrop');
       if (!drawer) return;
       drawer.classList.remove('open');
@@ -2374,6 +2790,80 @@
       }
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
       else init();
+    })();
+  </script>
+  <!-- ═══ TERMS & CONDITIONS JS ═══ -->
+  <script>
+    (function () {
+      var TC_KEY = 'pyt_india_tc_accepted_v1';
+
+      /* Open the modal */
+      window.openTC = function () {
+        var bd = document.getElementById('tcBackdrop');
+        if (!bd) return;
+        /* Reset checkbox each time opened manually */
+        var chk = document.getElementById('tcAgreeCheck');
+        var btn = document.getElementById('btnTcAccept');
+        if (chk) chk.checked = false;
+        if (btn) btn.classList.remove('enabled');
+        bd.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      };
+
+      /* Close / dismiss */
+      window.closeTC = function () {
+        var bd = document.getElementById('tcBackdrop');
+        if (bd) bd.classList.remove('open');
+        document.body.style.overflow = '';
+      };
+
+      /* Checkbox toggle — enable/disable Accept button */
+      window.tcToggleAccept = function (checkbox) {
+        var btn = document.getElementById('btnTcAccept');
+        if (!btn) return;
+        if (checkbox.checked) {
+          btn.classList.add('enabled');
+        } else {
+          btn.classList.remove('enabled');
+        }
+      };
+
+      /* Accept: save to localStorage, close */
+      window.tcAccept = function () {
+        try { localStorage.setItem(TC_KEY, '1'); } catch (e) { }
+        window.closeTC();
+      };
+
+      /* Decline: go back or show message */
+      window.tcDecline = function () {
+        /* Show a brief message inside the modal, then re-lock */
+        var body = document.getElementById('tcBody');
+        if (body) {
+          var msg = document.createElement('div');
+          msg.style.cssText = 'background:rgba(220,60,60,0.12);border:1px solid rgba(220,60,60,0.3);border-radius:10px;padding:.75rem 1rem;margin-top:.75rem;font-size:.82rem;color:#f87171;';
+          msg.textContent = '⚠️ You must accept the Terms & Conditions to use this website.';
+          body.appendChild(msg);
+          body.scrollTop = body.scrollHeight;
+          /* Remove message after 3s */
+          setTimeout(function () { if (msg.parentNode) msg.parentNode.removeChild(msg); }, 3500);
+        }
+      };
+
+      /* On page load: show if not accepted */
+      function checkTC() {
+        var accepted = false;
+        try { accepted = localStorage.getItem(TC_KEY) === '1'; } catch (e) { }
+        if (!accepted) {
+          /* Small delay so the page welcome animation runs first */
+          setTimeout(window.openTC, 1800);
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', checkTC);
+      } else {
+        checkTC();
+      }
     })();
   </script>
 </body>
