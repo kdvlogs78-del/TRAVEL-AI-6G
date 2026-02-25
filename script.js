@@ -1,3 +1,4 @@
+function initWelcomeOverlay() {
 /* ============================================================
    PLAN YOUR TRIP INDIA — Complete JavaScript
    AI Chatbot · Clickable India Map · Light/Dark Theme
@@ -44,7 +45,6 @@ function useCurrentLocation() {
                 );
                 const data = await res.json();
                 const addr = data.address || {};
-                // Strictly pick the city-level name only
                 const city = addr.city
                     || addr.town
                     || addr.municipality
@@ -180,7 +180,6 @@ function initWelcomeOverlay() {
     const dotsEl = document.getElementById('welcomeDots');
     if (!overlay) return;
 
-    // Create dots
     WELCOME_GREETINGS.forEach((_, i) => {
         const dot = document.createElement('div');
         dot.className = 'welcome-dot' + (i === 0 ? ' active' : '');
@@ -214,7 +213,6 @@ function initWelcomeOverlay() {
             setTimeout(() => {
                 overlay.classList.add('hidden');
                 overlay.style.pointerEvents = 'none';
-                // Show loader briefly then hide
                 const loader = document.getElementById('loader');
                 if (loader) {
                     loader.classList.add('active');
@@ -239,6 +237,7 @@ function initWelcomeOverlay() {
 window.addEventListener('load', () => {
     initWelcomeOverlay();
 });
+
 function initGreeting() {
     const hour = new Date().getHours();
     let g = 'Namaste 🙏';
@@ -262,7 +261,6 @@ function toggleTheme() {
     localStorage.setItem('pyti_theme', next);
 }
 
-// Init theme from localStorage — runs immediately so no flash
 (function initTheme() {
     const saved = localStorage.getItem('pyti_theme') || 'dark';
     document.documentElement.setAttribute('data-theme', saved);
@@ -285,7 +283,6 @@ function updateActiveNav() {
     links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === `#${current}`));
 }
 
-// ─── HAMBURGER ──────────────────────────────────────────────────
 // ─── MOBILE NAV OVERLAY ─────────────────────────────────────────
 (function setupMobileNav() {
     const hamburger = document.getElementById('hamburger');
@@ -357,7 +354,6 @@ function updateActiveNav() {
 
     document.querySelectorAll('.nav-link').forEach(l => l.addEventListener('click', closeNav));
 
-    // Expose globally so any inline onclick="closeMobileNav()" in HTML also works
     window.closeMobileNav = closeNav;
     window.openMobileNav = openNav;
 })();
@@ -375,21 +371,15 @@ function initScrollReveal() {
     document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
 }
 
-// ─── TRAVELERS ──────────────────────────────────────────────────
-
-// ─── INDIA MAP — using SVG (Leaflet removed) ─────────────────────
+// ─── INDIA MAP ─────────────────────────────────────────────────
 function initIndiaMap() {
     // SVG map is initialized inline in index.html
-    // onStateClick is available globally for SVG map click events
 }
-
-
 
 async function onStateClick(stateName) {
     if (!stateName) return;
     currentStateClicked = stateName;
 
-    // Show result panel
     document.getElementById('mapPanelDefault').style.display = 'none';
     document.getElementById('mapPanelResult').style.display = 'flex';
     document.getElementById('mapStateFlag').textContent = STATE_FLAGS[stateName] || '🗺️';
@@ -420,7 +410,7 @@ async function onStateClick(stateName) {
 Keep it under 180 words total.`;
 
     try {
-        const response = await callClaudeAI([{ role: 'user', content: prompt }]);
+        const response = await callGroqAI([{ role: 'user', content: prompt }]);
         document.getElementById('mapResultLoading').style.display = 'none';
         document.getElementById('mapResultContent').style.display = 'block';
         document.getElementById('mapResultContent').textContent = response;
@@ -643,9 +633,7 @@ function wizSetCustomBudget(val) {
         return;
     }
     wizState.customBudget = amount;
-    // Deselect preset cards
     document.querySelectorAll('.wiz-budget-card').forEach(c => c.classList.remove('selected'));
-    // Auto-classify for AI context
     if (amount < 15000) wizState.budget = 'budget';
     else if (amount < 40000) wizState.budget = 'normal';
     else wizState.budget = 'luxury';
@@ -671,7 +659,6 @@ function wizPopulateSummary() {
     document.getElementById('wizSumDuration').textContent = wizState.duration
         ? `${wizState.duration} days · ${wizFmtDate(wizState.dateFrom)} to ${wizFmtDate(wizState.dateTo)}`
         : '—';
-    const people = wizState.adults + wizState.children;
     document.getElementById('wizSumTravelers').textContent =
         `${wizState.adults} adult${wizState.adults > 1 ? 's' : ''}${wizState.children ? ` + ${wizState.children} child${wizState.children > 1 ? 'ren' : ''}` : ''}`;
     const bl = { budget: '🎒 Budget (₹5k–₹15k)', normal: '✈️ Mid-Range (₹15k–₹40k)', luxury: '👑 Luxury (₹40k+)' };
@@ -751,7 +738,7 @@ Respond ONLY with valid JSON (no markdown, no explanation):
 }
 Generate all ${dur} days. All budget numbers are per person in INR for the full trip.`;
 
-        const response = await callClaudeAI([{ role: 'user', content: prompt }]);
+        const response = await callGroqAI([{ role: 'user', content: prompt }]);
         let planData;
         try {
             planData = JSON.parse(response.replace(/```json|```/g, '').trim());
@@ -800,7 +787,6 @@ function wizRenderResults(plan, destination, duration) {
     document.getElementById('wizStepBar').style.display = 'none';
     document.getElementById('wizResultPanel').classList.add('active');
 
-    // Support both old budget key and new budget_per_person key
     const budgetData = plan.budget_per_person || plan.budget || {};
     const total = Object.values(budgetData).reduce((a, b) => a + b, 0);
     const people = wizState.adults + wizState.children;
@@ -817,7 +803,6 @@ function wizRenderResults(plan, destination, duration) {
     const bTotal = total || 1;
     const bPct = (v) => Math.round(((v || 0) / bTotal) * 100);
 
-    // Hotels HTML
     const hotelsHtml = (plan.hotels && plan.hotels.length) ? `
     <div class="plan-card plan-card-full">
       <div class="plan-card-header plan-card-header--teal">
@@ -838,7 +823,6 @@ function wizRenderResults(plan, destination, duration) {
       </div>
     </div>` : '';
 
-    // Transport HTML
     const transportHtml = (plan.transport) ? `
     <div class="plan-card plan-card-full plan-transport-card">
       <div class="plan-card-header plan-card-header--blue">
@@ -853,7 +837,6 @@ function wizRenderResults(plan, destination, duration) {
     </div>` : '';
 
     document.getElementById('wizResultCards').innerHTML = `
-    <!-- QUICK STATS STRIP -->
     <div class="plan-stats-strip">
       <div class="plan-stat"><div class="plan-stat-val">${duration}</div><div class="plan-stat-lbl">Days</div></div>
       <div class="plan-stat-div"></div>
@@ -866,9 +849,7 @@ function wizRenderResults(plan, destination, duration) {
 
     ${transportHtml}
 
-    <!-- TOP 2-COL GRID -->
     <div class="plan-grid-2">
-      <!-- Famous Places -->
       <div class="plan-card">
         <div class="plan-card-header plan-card-header--teal">
           <span class="plan-card-icon">🏛️</span>
@@ -883,7 +864,6 @@ function wizRenderResults(plan, destination, duration) {
         </ul>
       </div>
 
-      <!-- Hidden Gems -->
       <div class="plan-card">
         <div class="plan-card-header plan-card-header--gold">
           <span class="plan-card-icon">💎</span>
@@ -898,7 +878,6 @@ function wizRenderResults(plan, destination, duration) {
         </ul>
       </div>
 
-      <!-- Must-Try Food -->
       <div class="plan-card">
         <div class="plan-card-header plan-card-header--orange">
           <span class="plan-card-icon">🍜</span>
@@ -913,7 +892,6 @@ function wizRenderResults(plan, destination, duration) {
         </div>
       </div>
 
-      <!-- Budget Breakdown per person -->
       <div class="plan-card">
         <div class="plan-card-header plan-card-header--purple">
           <span class="plan-card-icon">💰</span>
@@ -960,7 +938,6 @@ function wizRenderResults(plan, destination, duration) {
 
     ${hotelsHtml}
 
-    <!-- DAY-BY-DAY ITINERARY -->
     <div class="plan-card plan-card-full">
       <div class="plan-card-header plan-card-header--blue">
         <span class="plan-card-icon">📅</span>
@@ -968,7 +945,6 @@ function wizRenderResults(plan, destination, duration) {
       </div>
       <div class="plan-days-grid">
         ${(plan.day_plan || []).map(d => {
-        // Support both old string format and new object format with time
         const morning = typeof d.morning === 'object' ? d.morning : { time: '7:00 AM – 11:00 AM', activity: d.morning, place: '', tip: '' };
         const afternoon = typeof d.afternoon === 'object' ? d.afternoon : { time: '11:00 AM – 3:00 PM', activity: d.afternoon, place: '', tip: '' };
         const evening = typeof d.evening === 'object' ? d.evening : { time: '4:00 PM – 8:00 PM', activity: d.evening, place: '', tip: '' };
@@ -1008,7 +984,6 @@ function wizRenderResults(plan, destination, duration) {
       </div>
     </div>
 
-    <!-- LOCAL TIPS -->
     ${plan.tips ? `
     <div class="plan-card plan-card-full plan-tips-card">
       <div class="plan-tips-icon">💡</div>
@@ -1187,7 +1162,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (ad) ad.disabled = true;
 });
 
-
 // ─── CITY PAGE ───────────────────────────────────────────────────
 function openCityPage(key) {
     const city = CITY_DATA[key];
@@ -1208,27 +1182,22 @@ function openCityPage(key) {
     document.getElementById('cityTitle').textContent = city.name;
     document.getElementById('cityTagline').textContent = city.tagline;
 
-    // Famous
     document.getElementById('famousCards').innerHTML = city.famous.map(p => `
     <div class="city-info-card"><div class="card-icon">🏛️</div><h4>${p}</h4><p>Must-visit attraction in ${city.name}</p></div>
   `).join('');
 
-    // Food
     document.getElementById('foodCards').innerHTML = city.food.map(f => `
     <div class="city-info-card"><div class="card-icon">🍜</div><h4>${f.name}</h4><p>Local street food delicacy</p><span class="price-tag">${f.price}</span></div>
   `).join('');
 
-    // Hidden
     document.getElementById('hiddenCards').innerHTML = city.hidden.map(p => `
     <div class="city-info-card"><div class="card-icon">💎</div><h4>${p}</h4><p>Hidden gem locals love</p></div>
   `).join('');
 
-    // Hotels
     document.getElementById('hotelCards').innerHTML = city.hotels.map(h => `
     <div class="city-info-card"><div class="card-icon">🏨</div><h4>${h}</h4><p>Recommended stay in ${city.name}</p></div>
   `).join('');
 
-    // Tab switching
     document.querySelectorAll('.city-tab').forEach(tab => {
         tab.onclick = () => {
             document.querySelectorAll('.city-tab').forEach(t => t.classList.remove('active'));
@@ -1254,7 +1223,6 @@ function quickPlanCity() {
     document.getElementById('planner').scrollIntoView({ behavior: 'smooth' });
 }
 
-// Expose for HTML
 function showMain() { closeCityPage(); }
 
 // ─── AI CHATBOT ──────────────────────────────────────────────────
@@ -1289,7 +1257,7 @@ async function sendMessage() {
     const typingId = showTypingIndicator();
 
     try {
-        const response = await callClaudeAI(chatHistory);
+        const response = await callGroqAI(chatHistory);
         removeTyping(typingId);
         appendChatMsg('bot', '🤖', response);
         chatHistory.push({ role: 'assistant', content: response });
@@ -1342,40 +1310,71 @@ function removeTyping(id) {
     if (el) el.remove();
 }
 
-// ─── CLAUDE API ─────────────────────────────────────────────────
-async function callClaudeAI(messages) {
+// ═══════════════════════════════════════════════════════════════
+//  GROQ API  —  replaces the previous Anthropic / Claude call
+//  Model: llama-3.3-70b-versatile  (fast, free-tier friendly)
+//  Docs : https://console.groq.com/docs/openai
+// ═══════════════════════════════════════════════════════════════
+
+// ⚠️  IMPORTANT — SECURITY NOTE ──────────────────────────────────
+//  Never hard-code your real Groq API key in client-side JS that
+//  ships to production.  For a public site either:
+//    • Use a backend proxy  (recommended)
+//    • Use environment variables injected at build time
+//    • Restrict the key by domain in the Groq console
+//
+//  Replace the placeholder below with your actual Groq API key.
+//  Get one free at: https://console.groq.com/keys
+// ─────────────────────────────────────────────────────────────────
+const GROQ_API_KEY = 'YOUR_GROQ_API_KEY_HERE'; // 🔑 Replace this!
+
+// Groq model to use — llama-3.3-70b-versatile is recommended:
+//   • Very fast (< 1 s for short prompts)
+//   • High quality, handles JSON well
+//   • Other options: mixtral-8x7b-32768 | gemma2-9b-it | llama3-8b-8192
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+
+const GROQ_SYSTEM_PROMPT = `You are India Travel AI — a knowledgeable, friendly travel planning assistant specializing in India.
+You help travelers plan trips across India's 28+ states. You know about destinations, itineraries, budgets, local food, hidden gems, culture, and practical travel tips.
+Keep responses concise, practical, and well-formatted. Use emojis sparingly for readability.
+When asked for JSON, respond ONLY with valid JSON, no markdown fences or extra text.`;
+
+async function callGroqAI(messages) {
     // Filter to only user/assistant roles for the API
     const apiMessages = messages
         .filter(m => m.role === 'user' || m.role === 'assistant')
         .map(m => ({ role: m.role, content: m.content }));
 
-    // Ensure starts with user
     if (!apiMessages.length || apiMessages[0].role !== 'user') {
         throw new Error('Invalid message format');
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GROQ_API_KEY}`
+        },
         body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 1000,
-            system: `You are India Travel AI — a knowledgeable, friendly travel planning assistant specializing in India. 
-You help travelers plan trips across India's 28+ states. You know about destinations, itineraries, budgets, local food, hidden gems, culture, and practical travel tips.
-Keep responses concise, practical, and well-formatted. Use emojis sparingly for readability.
-When asked for JSON, respond ONLY with valid JSON, no markdown fences or extra text.`,
-            messages: apiMessages
+            model: GROQ_MODEL,
+            max_tokens: 2048,
+            temperature: 0.7,
+            messages: [
+                { role: 'system', content: GROQ_SYSTEM_PROMPT },
+                ...apiMessages
+            ]
         })
     });
 
     if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err?.error?.message || `API Error: ${response.status}`);
+        throw new Error(
+            err?.error?.message || `Groq API Error ${response.status}: ${response.statusText}`
+        );
     }
 
     const data = await response.json();
-    const content = data.content || [];
-    return content.filter(b => b.type === 'text').map(b => b.text).join('\n') || '';
+    return data?.choices?.[0]?.message?.content?.trim() || '';
 }
 
 // ─── CONTACT FORM ───────────────────────────────────────────────
@@ -1403,21 +1402,15 @@ document.addEventListener('keydown', e => {
     }
 });
 
-
 // ════════════════════════════════════════════════
 //  AUTH — Login / Sign Up System
 // ════════════════════════════════════════════════
 
-// Simple in-memory user store (localStorage-backed)
 let currentUser = JSON.parse(localStorage.getItem('pyti_user') || 'null');
 
-// On init — reflect login state in navbar
 window.addEventListener('DOMContentLoaded', () => {
     refreshNavAuth();
 
-    // ── MOBILE SCROLL FIX ─────────────────────────────────────────
-    // iOS Safari doesn't reliably handle href="#section" with fixed nav.
-    // Override ALL internal anchor links to use JS scrollIntoView.
     document.querySelectorAll('a[href^="#"]').forEach(link => {
         link.addEventListener('click', function (e) {
             const target = document.querySelector(this.getAttribute('href'));
@@ -1450,13 +1443,11 @@ function refreshNavAuth() {
     if (window.updateMobileAuthUI) window.updateMobileAuthUI();
 }
 
-// ── Modal open / close ────────────────────────
 function openModal(id) {
     const modal = document.getElementById(id);
     if (!modal) return;
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
-    // Focus first input
     setTimeout(() => {
         const inp = modal.querySelector('.auth-input');
         if (inp) inp.focus();
@@ -1476,17 +1467,14 @@ function switchModal(fromId, toId) {
     setTimeout(() => openModal(toId), 200);
 }
 
-// Close on backdrop click
 document.addEventListener('click', (e) => {
     if (e.target.classList.contains('auth-modal-backdrop')) {
         closeModal(e.target.id);
     }
 });
 
-// Close on Escape
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        // Close mobile nav
         const mo = document.getElementById('navMobileOverlay');
         if (mo && mo.classList.contains('open')) {
             document.getElementById('hamburger').classList.remove('open');
@@ -1512,7 +1500,6 @@ function clearAuthErrors(modalId) {
     modal.querySelectorAll('.auth-input').forEach(el => el.value = '');
 }
 
-// ── Password toggle ───────────────────────────
 function togglePw(inputId, btn) {
     const inp = document.getElementById(inputId);
     if (!inp) return;
@@ -1525,7 +1512,6 @@ function togglePw(inputId, btn) {
     }
 }
 
-// ── Password strength checker ─────────────────
 function checkPwStrength(pw) {
     const fill = document.getElementById('pwStrengthFill');
     const label = document.getElementById('pwStrengthLabel');
@@ -1550,7 +1536,6 @@ function checkPwStrength(pw) {
     label.style.color = lvl.color;
 }
 
-// ── Form validation helpers ───────────────────
 function showAuthError(modalId, errorId, msg) {
     const el = document.getElementById(errorId);
     if (!el) return;
@@ -1573,7 +1558,6 @@ function setLoading(btnId, loading) {
     btn.disabled = loading;
 }
 
-// ── Login Handler ─────────────────────────────
 function handleLogin() {
     const email = document.getElementById('loginEmail')?.value.trim();
     const password = document.getElementById('loginPassword')?.value;
@@ -1590,7 +1574,6 @@ function handleLogin() {
 
     setLoading('loginSubmitBtn', true);
 
-    // Simulate API call (localStorage user store)
     setTimeout(() => {
         setLoading('loginSubmitBtn', false);
         const users = JSON.parse(localStorage.getItem('pyti_users') || '[]');
@@ -1607,7 +1590,6 @@ function handleLogin() {
     }, 1200);
 }
 
-// ── Sign Up Handler ───────────────────────────
 function handleSignup() {
     const first = document.getElementById('signupFirst')?.value.trim();
     const last = document.getElementById('signupLast')?.value.trim();
@@ -1653,12 +1635,10 @@ function handleSignup() {
     }, 1400);
 }
 
-// ── Social Login (Placeholder) ─────────────────
 function handleSocialLogin(provider) {
     showToast('🔗 ' + provider + ' login coming soon!');
 }
 
-// ── Logout ────────────────────────────────────
 function logoutUser() {
     currentUser = null;
     localStorage.removeItem('pyti_user');
