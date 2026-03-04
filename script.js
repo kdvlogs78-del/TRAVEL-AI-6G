@@ -492,6 +492,39 @@ function wizPrevStep() {
     document.getElementById('wizNextBtnText').textContent = 'Continue';
 }
 
+// Jump directly to any step from the Review summary edit buttons
+function wizJumpToStep(targetStep) {
+    if (targetStep === wizCurrentStep) return;
+
+    // Hide current panel + deactivate step bar item
+    document.getElementById('wizPanel' + wizCurrentStep).classList.remove('active');
+    const curItem = document.getElementById('wizStep' + wizCurrentStep);
+    if (curItem) { curItem.classList.remove('active'); curItem.classList.remove('completed'); }
+
+    // Restore all steps between target and current back to completed state
+    for (let s = 1; s < WIZ_TOTAL; s++) {
+        const si = document.getElementById('wizStep' + s);
+        if (!si) continue;
+        si.classList.remove('active', 'completed');
+        if (s < targetStep) {
+            si.classList.add('completed');
+            si.querySelector('.wiz-step-circle').innerHTML = '✓';
+        } else if (s === targetStep) {
+            si.classList.add('active');
+            si.querySelector('.wiz-step-circle').innerHTML = s;
+        } else {
+            si.querySelector('.wiz-step-circle').innerHTML = s;
+        }
+    }
+
+    wizCurrentStep = targetStep;
+    document.getElementById('wizPanel' + wizCurrentStep).classList.add('active');
+    document.getElementById('wizBackBtn').disabled = (wizCurrentStep === 1);
+    document.getElementById('wizStepCount').textContent = `Step ${wizCurrentStep} of ${WIZ_TOTAL}`;
+    document.getElementById('wizNextBtnText').textContent = wizCurrentStep === WIZ_TOTAL ? 'Generate Plan ✦' : 'Continue';
+    document.getElementById('wizardCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function wizValidate(step) {
     if (step === 1) {
         const dest = document.getElementById('wizDestInput')?.value?.trim() || '';
@@ -669,7 +702,7 @@ function wizPopulateSummary() {
 async function wizGeneratePlan() {
     const btn = document.getElementById('wizNextBtn');
     btn.disabled = true;
-    btn.innerHTML = '<span>Crafting</span> <span class="wiz-dot-loader"><span></span><span></span><span></span></span>';
+    btn.innerHTML = `<span style="font-size:.8rem">🗺️ Finding best spots…</span>`;
     document.getElementById('wizBackBtn').disabled = true;
 
     const dest = wizState.destination;
@@ -688,50 +721,48 @@ async function wizGeneratePlan() {
     const cityKey = Object.keys(CITY_DATA).find(k => dest.toLowerCase().includes(k));
     const cityData = cityKey ? CITY_DATA[cityKey] : null;
 
-    try {
-        const prompt = `Create a detailed ${dur}-day travel itinerary for ${dest}, India.
-${fromLine}Travelers: ${people} (${wizState.adults} adult${wizState.adults > 1 ? 's' : ''}, ${wizState.children} children).
-Budget: ${budgetLabel} — ₹${budgetPerPerson.toLocaleString('en-IN')} per person total.
-Style: ${style}. Food: ${foodPref}${dietExtra}. Accommodation preference: ${wizState.accom.join(', ') || 'Resort'}.
+    // ── Animated loading stages so it feels fast ──
+    const loadingStages = [
+        '🗺️ Finding best spots…',
+        '🏨 Picking top hotels…',
+        '🚆 Checking trains & buses…',
+        '🍽️ Adding food stops…',
+        '✦ Finishing your plan…'
+    ];
+    let stageIdx = 0;
+    const loadBtn = document.getElementById('wizNextBtn');
+    const stageInterval = setInterval(() => {
+        stageIdx = (stageIdx + 1) % loadingStages.length;
+        if (loadBtn) loadBtn.innerHTML = `<span style="font-size:.8rem">${loadingStages[stageIdx]}</span>`;
+    }, 1800);
 
-Respond ONLY with valid JSON (no markdown, no explanation):
-{
-  "city": "${dest}",
-  "tagline": "evocative one-liner",
-  "transport": {
-    "how_to_reach": "best way to reach from ${from || 'major city'} — train/flight/bus with name, duration, approx cost",
-    "train": "specific train name and number if applicable, e.g. Rajdhani Express 12951",
-    "local_transport": "best local transport inside ${dest}"
-  },
-  "hotels": [
-    {"name": "Hotel Name", "type": "Budget/Mid-range/Luxury", "area": "area name", "price_per_night": "₹XXXX", "why": "one reason"},
-    {"name": "Hotel Name", "type": "Budget/Mid-range/Luxury", "area": "area name", "price_per_night": "₹XXXX", "why": "one reason"},
-    {"name": "Hotel Name", "type": "Budget/Mid-range/Luxury", "area": "area name", "price_per_night": "₹XXXX", "why": "one reason"}
-  ],
-  "famous": ["place1", "place2", "place3", "place4", "place5"],
-  "hidden": ["gem1", "gem2", "gem3", "gem4"],
-  "food": [{"name": "dish", "price": "₹XX"}, {"name": "dish", "price": "₹XX"}, {"name": "dish", "price": "₹XX"}, {"name": "dish", "price": "₹XX"}],
-  "day_plan": [
-    {
-      "day": 1,
-      "title": "Day title",
-      "morning": {"time": "7:00 AM – 10:00 AM", "activity": "what to do", "place": "place name", "tip": "quick tip"},
-      "afternoon": {"time": "11:00 AM – 3:00 PM", "activity": "what to do", "place": "place name", "tip": "quick tip"},
-      "evening": {"time": "4:00 PM – 8:00 PM", "activity": "what to do", "place": "place name", "tip": "quick tip"},
-      "food": "recommended meal for the day with restaurant/stall name"
-    }
-  ],
-  "budget_per_person": {
-    "accommodation": XXXX,
-    "food": XXXX,
-    "transport": XXXX,
-    "activities": XXXX
-  },
-  "tips": "one practical insider tip"
-}
-Generate all ${dur} days. All budget numbers are per person in INR for the full trip.`;
+    try {
+        // LEAN prompt — no giant example JSON, just a tight schema description
+        const prompt = `Expert India travel planner. Create a ${dur}-day trip to ${dest}${from ? ` from ${from}` : ''}.
+People: ${people}. Budget: ${budgetLabel} (₹${budgetPerPerson.toLocaleString('en-IN')}/person). Style: ${style}. Food: ${foodPref}${dietExtra}.
+
+Reply ONLY in JSON. No markdown. Use REAL named places, hotels, trains, buses.
+
+{"city":"${dest}","tagline":"<1 line>","overview":"<2 sentences>",
+"transport":{"summary":"<1 sentence>","options":[
+{"mode":"Train","icon":"🚂","color":"#3b82f6","routes":[{"name":"<real train name>","number":"<train#>","from":"<station>","to":"<station>","duration":"<Xhr>","fare":"<₹X–₹X SL/3A>","frequency":"<daily/weekly>","departs":"<time>","tip":"<tip>"}]},
+{"mode":"Bus","icon":"🚌","color":"#10b981","routes":[{"name":"<operator e.g. KSRTC>","from":"<stand>","to":"<stand>","duration":"<Xhr>","fare":"<₹X>","frequency":"<daily>","departs":"<time>","tip":"<tip>"}]},
+{"mode":"Flight","icon":"✈️","color":"#8b5cf6","routes":[{"name":"IndiGo/Air India","from":"<airport>","to":"<airport>","duration":"<Xhr>","fare":"<₹X–₹X>","frequency":"Daily","departs":"Multiple","tip":"<tip>"}]}
+],"local_transport":{"options":[{"mode":"Auto","icon":"🛺","cost":"₹X/km","tip":"<tip>"},{"mode":"Local Bus","icon":"🚌","cost":"₹X","tip":"<tip>"},{"mode":"Cab","icon":"🚕","cost":"₹X/km","tip":"<tip>"}]}},
+"hotels":[
+{"name":"<REAL hotel>","type":"Luxury","area":"<area>","address":"<address>","price_per_night":"₹X","price_range":"₹X–₹X","rating":"4.5","stars":4,"amenities":["Pool","Spa","WiFi"],"distance_from_center":"Xkm","why":"<reason>","book_via":"MakeMyTrip"},
+{"name":"<REAL hotel>","type":"Mid-range","area":"<area>","address":"<address>","price_per_night":"₹X","price_range":"₹X–₹X","rating":"4.0","stars":3,"amenities":["AC","WiFi"],"distance_from_center":"Xkm","why":"<reason>","book_via":"Booking.com"},
+{"name":"<REAL hotel>","type":"Budget","area":"<area>","address":"<address>","price_per_night":"₹X","price_range":"₹X–₹X","rating":"3.8","stars":2,"amenities":["WiFi","AC"],"distance_from_center":"Xkm","why":"<reason>","book_via":"OYO"}
+],
+"days":[${Array.from({ length: dur }, (_, i) => `{"day":${i + 1},"title":"<theme>","theme_color":"<hex>","spots":[{"order":1,"name":"<REAL place>","category":"Attraction","emoji":"🏛️","description":"<2 sentences>","time":"9:00 AM","duration":"1.5 hrs","entry_fee":"₹50","tip":"<tip>","travel_to_next":{"mins":10,"mode":"walk","distance":"600m"}}]}`).join(',')}],
+"budget_per_person":{"accommodation":N,"food":N,"transport":N,"activities":N},
+"best_time":"<months>","local_tips":["<tip1>","<tip2>","<tip3>"],
+"emergency":{"police":"100","tourist_helpline":"1800-111-363","hospital":"<name>"}}
+
+Rules: Each day 4-5 spots. All spots/hotels/trains REAL. Numbers as integers in INR.`;
 
         const response = await callGroqAI([{ role: 'user', content: prompt }]);
+        clearInterval(stageInterval);
         let planData;
         try {
             planData = JSON.parse(response.replace(/```json|```/g, '').trim());
@@ -740,38 +771,81 @@ Generate all ${dur} days. All budget numbers are per person in INR for the full 
         }
         wizRenderResults(planData, dest, dur);
     } catch (err) {
+        clearInterval(stageInterval);
         wizRenderResults(wizBuildFallback(dest, dur, cityData), dest, dur);
     }
 }
 
 function wizBuildFallback(destination, days, cityData) {
-    const d = cityData || {
-        famous: [`${destination} Heritage Site`, `${destination} City Centre`, `${destination} Museum`, 'Local Market', 'Viewpoint'],
-        hidden: ['Old town lanes', 'Local village nearby', 'Scenic route', 'Sunrise point'],
-        food: [{ name: 'Local Thali', price: '₹80' }, { name: 'Street Snacks', price: '₹30' }, { name: 'Regional Curry', price: '₹150' }],
-        per_day: { budget: 1000, normal: 3000, luxury: 8000 },
-        tips: `Hire a local guide for the best experience in ${destination}.`
-    };
+    const d = cityData || {};
     const perDay = d.per_day?.[wizState.budget] || 3000;
     const totalDays = Math.min(days, 7);
-    const allSpots = [...(d.famous || []), ...(d.hidden || [])];
+    const famous = d.famous || [`${destination} Heritage Site`, `${destination} City Centre`, `${destination} Museum`, 'Local Market', 'Sunset Point'];
+    const spotsPool = [
+        { name: famous[0], category: 'Attraction', emoji: '🏛️', description: `One of the most iconic sites in ${destination}. A must-visit on any trip.`, time: '9:00 AM', duration: '2 hrs', entry_fee: '₹50', tip: 'Visit early morning to avoid crowds.' },
+        { name: famous[1] || `${destination} Old City`, category: 'Attraction', emoji: '🗺️', description: `Explore the historic heart of ${destination}.`, time: '11:30 AM', duration: '1.5 hrs', entry_fee: 'Free', tip: 'Wear comfortable shoes for walking.' },
+        { name: (d.food && d.food[0]?.name ? `${d.food[0].name} at local dhaba` : `Famous ${destination} Thali`), category: 'Restaurant', emoji: '🍽️', description: `Try authentic local cuisine. A beloved spot among locals and tourists alike.`, time: '1:00 PM', duration: '1 hr', entry_fee: '₹150–300', tip: 'Order the house special.' },
+        { name: famous[2] || `${destination} Museum`, category: 'Museum', emoji: '🏺', description: `Discover the rich cultural heritage and history of the region.`, time: '3:00 PM', duration: '1.5 hrs', entry_fee: '₹30', tip: 'Audio guides available at the entrance.' },
+        { name: famous[3] || 'Local Bazaar', category: 'Market', emoji: '🛍️', description: `Browse colourful stalls selling local handicrafts and souvenirs.`, time: '5:00 PM', duration: '1.5 hrs', entry_fee: 'Free', tip: 'Bargain politely — start at 50% of asking price.' }
+    ];
     return {
-        city: destination, tagline: `Discover the wonders of ${destination}`,
-        famous: d.famous, hidden: d.hidden, food: d.food,
-        day_plan: Array.from({ length: totalDays }, (_, i) => ({
-            day: i + 1, title: `Day ${i + 1} in ${destination}`,
-            morning: `Visit ${allSpots[i * 2 % allSpots.length]}`,
-            afternoon: 'Explore local markets and cafes',
-            evening: `Evening at ${allSpots[(i * 2 + 1) % allSpots.length]}`,
-            food: (d.food[i % d.food.length]?.name || 'Local cuisine') + ' for dinner'
+        city: destination,
+        tagline: `Discover the wonders of ${destination}`,
+        overview: `${destination} offers an unforgettable blend of culture, history, and natural beauty. This ${totalDays}-day plan takes you through its most iconic landmarks and hidden treasures.`,
+        transport: {
+            summary: `Multiple options available to reach ${destination} from ${wizState.from || 'your city'}.`,
+            options: [
+                {
+                    mode: 'Train', icon: '🚂', color: '#3b82f6',
+                    routes: [
+                        { name: 'Express Train (check IRCTC)', number: '—', from: wizState.from || 'Your City', to: `${destination} Railway Station`, duration: 'Varies', fare: '₹300–₹2000 (SL/3A/2A)', frequency: 'Multiple daily', departs: 'Various', tip: 'Book 60 days ahead on IRCTC for best availability.' }
+                    ]
+                },
+                {
+                    mode: 'Bus', icon: '🚌', color: '#10b981',
+                    routes: [
+                        { name: 'State Transport / KSRTC / MSRTC', from: `${wizState.from || 'Your City'} Bus Stand`, to: `${destination} Bus Stand`, duration: 'Varies', fare: '₹200–₹800', frequency: 'Multiple daily', departs: 'Morning & Night', tip: 'Book on RedBus or at the bus stand counter.' }
+                    ]
+                },
+                {
+                    mode: 'Flight', icon: '✈️', color: '#8b5cf6',
+                    routes: [
+                        { name: 'IndiGo / Air India / SpiceJet', from: `${wizState.from || 'Nearest'} Airport`, to: `${destination} Airport`, duration: '1–3 hrs', fare: '₹2500–₹9000', frequency: 'Daily', departs: 'Multiple', tip: 'Book 4–6 weeks in advance for lowest fares.' }
+                    ]
+                }
+            ],
+            local_transport: {
+                options: [
+                    { mode: 'Auto-rickshaw', icon: '🛺', cost: '₹15–₹25/km', tip: 'Use meter or pre-negotiate fare.' },
+                    { mode: 'Local Bus', icon: '🚌', cost: '₹5–₹20', tip: 'Cheapest way to explore.' },
+                    { mode: 'Cab / Ola / Uber', icon: '🚕', cost: '₹12–₹18/km', tip: 'Most convenient, use app for fixed price.' }
+                ]
+            }
+        },
+        hotels: [
+            { name: `Heritage Resort ${destination}`, type: 'Luxury', area: 'City Centre', address: `Near Main Chowk, ${destination}`, price_per_night: '₹4500', price_range: '₹4000–₹6000', rating: '4.4', stars: 4, amenities: ['Pool', 'Spa', 'Restaurant', 'Free WiFi', 'AC'], distance_from_center: '0.5 km from city centre', why: 'Best views, heritage property, central location.', book_via: 'MakeMyTrip / Booking.com' },
+            { name: `Comfort Inn ${destination}`, type: 'Mid-range', area: 'Near Bus Stand', address: `Bus Stand Road, ${destination}`, price_per_night: '₹1800', price_range: '₹1500–₹2200', rating: '4.0', stars: 3, amenities: ['AC', 'Free WiFi', 'Restaurant', 'Parking'], distance_from_center: '1.2 km from city centre', why: 'Clean rooms, great value, easy access.', book_via: 'MakeMyTrip / Booking.com' },
+            { name: `Budget Stay ${destination}`, type: 'Budget', area: 'Old City', address: `Old Market Area, ${destination}`, price_per_night: '₹700', price_range: '₹500–₹900', rating: '3.8', stars: 2, amenities: ['WiFi', 'AC', 'Hot Water'], distance_from_center: '1.8 km from city centre', why: 'Affordable, well-located near main attractions.', book_via: 'OYO / Booking.com' }
+        ],
+        days: Array.from({ length: totalDays }, (_, i) => ({
+            day: i + 1,
+            title: i === 0 ? 'Arrival & First Impressions' : i === totalDays - 1 ? 'Final Gems & Departure' : `Explore ${destination} — Day ${i + 1}`,
+            theme_color: ['#3a8c7e', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#10b981', '#f97316'][i % 7],
+            spots: spotsPool.map((s, si) => ({
+                ...s,
+                order: si + 1,
+                travel_to_next: si < spotsPool.length - 1 ? { mins: 10 + Math.floor(Math.random() * 15), mode: si % 2 === 0 ? 'walk' : 'auto', distance: `${(0.5 + Math.random() * 1.5).toFixed(1)}km` } : null
+            }))
         })),
-        budget: {
+        budget_per_person: {
             accommodation: Math.round(perDay * 0.4) * totalDays,
             food: Math.round(perDay * 0.25) * totalDays,
             transport: Math.round(perDay * 0.2) * totalDays,
             activities: Math.round(perDay * 0.15) * totalDays
         },
-        tips: d.tips || `Enjoy your trip to ${destination}!`
+        best_time: 'October to March for most parts of India.',
+        local_tips: [`Carry cash — many local shops don't accept cards in ${destination}.`, 'Dress modestly when visiting temples and religious sites.', 'Download offline maps before you travel.'],
+        emergency: { police: '100', tourist_helpline: '1800-111-363', hospital: `District Hospital, ${destination}` }
     };
 }
 
@@ -781,7 +855,7 @@ function wizRenderResults(plan, destination, duration) {
     document.getElementById('wizResultPanel').classList.add('active');
 
     const budgetData = plan.budget_per_person || plan.budget || {};
-    const total = Object.values(budgetData).reduce((a, b) => a + b, 0);
+    const total = Object.values(budgetData).reduce((a, b) => a + (Number(b) || 0), 0);
     const people = wizState.adults + wizState.children;
     const totalAll = total * people;
     const budgetLabel = wizState.customBudget
@@ -796,40 +870,67 @@ function wizRenderResults(plan, destination, duration) {
     const bTotal = total || 1;
     const bPct = (v) => Math.round(((v || 0) / bTotal) * 100);
 
-    const hotelsHtml = (plan.hotels && plan.hotels.length) ? `
-    <div class="plan-card plan-card-full">
-      <div class="plan-card-header plan-card-header--teal">
-        <span class="plan-card-icon">🏨</span>
-        <h4>Hotel Suggestions</h4>
-      </div>
-      <div class="plan-hotels-grid">
-        ${plan.hotels.map(h => `
-        <div class="plan-hotel-card">
-          <div class="plan-hotel-top">
-            <div class="plan-hotel-name">${h.name}</div>
-            <div class="plan-hotel-badge">${h.type || ''}</div>
-          </div>
-          <div class="plan-hotel-area">📍 ${h.area || ''}</div>
-          <div class="plan-hotel-price">₹ ${h.price_per_night || ''} <span>/night</span></div>
-          <div class="plan-hotel-why">✦ ${h.why || ''}</div>
-        </div>`).join('')}
-      </div>
-    </div>` : '';
+    // Support both new "days" format and legacy "day_plan"
+    const daysData = plan.days || (plan.day_plan || []).map(d => ({
+        day: d.day, title: d.title,
+        theme_color: '#3a8c7e',
+        spots: [
+            { order: 1, name: d.morning?.place || d.morning || 'Morning Activity', category: 'Attraction', emoji: '🌅', description: d.morning?.activity || (typeof d.morning === 'string' ? d.morning : ''), time: d.morning?.time || '9:00 AM', duration: '2 hrs', entry_fee: '', tip: d.morning?.tip || '', travel_to_next: { mins: 20, mode: 'auto', distance: '1.5km' } },
+            { order: 2, name: d.afternoon?.place || d.afternoon || 'Afternoon Spot', category: 'Attraction', emoji: '☀️', description: d.afternoon?.activity || (typeof d.afternoon === 'string' ? d.afternoon : ''), time: d.afternoon?.time || '1:00 PM', duration: '2 hrs', entry_fee: '', tip: d.afternoon?.tip || '', travel_to_next: { mins: 15, mode: 'walk', distance: '800m' } },
+            { order: 3, name: d.food || 'Local Restaurant', category: 'Restaurant', emoji: '🍽️', description: 'Enjoy authentic local cuisine.', time: '3:30 PM', duration: '1 hr', entry_fee: '₹150–300', tip: 'Try the house special.', travel_to_next: null },
+            { order: 4, name: d.evening?.place || d.evening || 'Evening Activity', category: 'Attraction', emoji: '🌙', description: d.evening?.activity || (typeof d.evening === 'string' ? d.evening : ''), time: d.evening?.time || '6:00 PM', duration: '2 hrs', entry_fee: '', tip: d.evening?.tip || '', travel_to_next: null }
+        ]
+    }));
 
-    const transportHtml = (plan.transport) ? `
-    <div class="plan-card plan-card-full plan-transport-card">
-      <div class="plan-card-header plan-card-header--blue">
-        <span class="plan-card-icon">🚆</span>
-        <h4>How to Get There</h4>
-      </div>
-      <div class="plan-transport-grid">
-        ${plan.transport.how_to_reach ? `<div class="plan-transport-item"><span class="plan-transport-icon">✈️🚆</span><div><div class="plan-transport-label">Best Route</div><div class="plan-transport-val">${plan.transport.how_to_reach}</div></div></div>` : ''}
-        ${plan.transport.train ? `<div class="plan-transport-item"><span class="plan-transport-icon">🚂</span><div><div class="plan-transport-label">Train</div><div class="plan-transport-val">${plan.transport.train}</div></div></div>` : ''}
-        ${plan.transport.local_transport ? `<div class="plan-transport-item"><span class="plan-transport-icon">🛺</span><div><div class="plan-transport-label">Local Transport</div><div class="plan-transport-val">${plan.transport.local_transport}</div></div></div>` : ''}
-      </div>
-    </div>` : '';
+    // Category colour mapping
+    const catColor = { Attraction: '#3b82f6', Restaurant: '#f59e0b', Temple: '#8b5cf6', Museum: '#ec4899', Market: '#f97316', Nature: '#10b981', Hotel: '#3a8c7e', Shopping: '#e879f9', default: '#6b7280' };
+    const modeIcon = { walk: '🚶', auto: '🛺', taxi: '🚕', bus: '🚌', default: '🚗' };
+
+    // Build day tabs
+    const tabsHtml = daysData.map((d, i) => `
+      <button class="rp-day-tab ${i === 0 ? 'active' : ''}" onclick="rpSwitchDay(${i})" data-day="${i}">
+        <span class="rp-tab-num">Day ${d.day}</span>
+        <span class="rp-tab-title">${d.title || ''}</span>
+      </button>`).join('');
+
+    // Build each day's spots
+    const daysHtml = daysData.map((d, di) => `
+      <div class="rp-day-panel ${di === 0 ? 'active' : ''}" id="rpDay${di}">
+        <div class="rp-day-header" style="border-left:4px solid ${d.theme_color || '#3a8c7e'}">
+          <div class="rp-day-badge" style="background:${d.theme_color || '#3a8c7e'}">Day ${d.day}</div>
+          <div class="rp-day-title-full">${d.title || `Day ${d.day} in ${plan.city || destination}`}</div>
+          <div class="rp-day-spot-count">${(d.spots || []).length} spots</div>
+        </div>
+        <div class="rp-spots-list">
+          ${(d.spots || []).map((s, si) => `
+          <div class="rp-spot-item">
+            <div class="rp-spot-num">${s.order || si + 1}</div>
+            <div class="rp-spot-body">
+              <div class="rp-spot-top">
+                <div class="rp-spot-info">
+                  <div class="rp-spot-name">${s.emoji || '📍'} ${s.name}</div>
+                  <div class="rp-spot-meta">
+                    <span class="rp-spot-cat" style="background:${(catColor[s.category] || catColor.default)}22;color:${catColor[s.category] || catColor.default}">${s.category || 'Attraction'}</span>
+                    ${s.time ? `<span class="rp-spot-time">🕐 ${s.time}</span>` : ''}
+                    ${s.duration ? `<span class="rp-spot-dur">⏱ ${s.duration}</span>` : ''}
+                  </div>
+                </div>
+                ${s.entry_fee ? `<div class="rp-spot-fee">${s.entry_fee}</div>` : ''}
+              </div>
+              ${s.description ? `<p class="rp-spot-desc">${s.description}</p>` : ''}
+              ${s.tip ? `<div class="rp-spot-tip">💡 ${s.tip}</div>` : ''}
+              ${s.travel_to_next ? `
+              <div class="rp-travel-connector">
+                <span class="rp-travel-line"></span>
+                <span class="rp-travel-badge">${modeIcon[s.travel_to_next.mode] || '🚗'} ${s.travel_to_next.mins} min · ${s.travel_to_next.distance}</span>
+              </div>` : ''}
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`).join('');
 
     document.getElementById('wizResultCards').innerHTML = `
+    <!-- STATS STRIP -->
     <div class="plan-stats-strip">
       <div class="plan-stat"><div class="plan-stat-val">${duration}</div><div class="plan-stat-lbl">Days</div></div>
       <div class="plan-stat-div"></div>
@@ -840,159 +941,241 @@ function wizRenderResults(plan, destination, duration) {
       <div class="plan-stat"><div class="plan-stat-val">₹${(totalAll / 1000).toFixed(1)}k</div><div class="plan-stat-lbl">Total (${people})</div></div>
     </div>
 
-    ${transportHtml}
+    ${plan.overview ? `<div class="rp-overview">${plan.overview}</div>` : ''}
 
-    <div class="plan-grid-2">
-      <div class="plan-card">
-        <div class="plan-card-header plan-card-header--teal">
-          <span class="plan-card-icon">🏛️</span>
-          <h4>Famous Places</h4>
-        </div>
-        <ul class="plan-list">
-          ${(plan.famous || []).map((p, i) => `
-          <li class="plan-list-item">
-            <span class="plan-list-num">${i + 1}</span>
-            <span>${p}</span>
-          </li>`).join('')}
-        </ul>
-      </div>
-
-      <div class="plan-card">
-        <div class="plan-card-header plan-card-header--gold">
-          <span class="plan-card-icon">💎</span>
-          <h4>Hidden Gems</h4>
-        </div>
-        <ul class="plan-list">
-          ${(plan.hidden || []).map((p, i) => `
-          <li class="plan-list-item">
-            <span class="plan-list-gem">✦</span>
-            <span>${p}</span>
-          </li>`).join('')}
-        </ul>
-      </div>
-
-      <div class="plan-card">
-        <div class="plan-card-header plan-card-header--orange">
-          <span class="plan-card-icon">🍜</span>
-          <h4>Must-Try Food</h4>
-        </div>
-        <div class="plan-food-list">
-          ${(plan.food || []).map(f => `
-          <div class="plan-food-item">
-            <span class="plan-food-name">${f.name}</span>
-            <span class="plan-food-price">${f.price || ''}</span>
-          </div>`).join('')}
-        </div>
-      </div>
-
-      <div class="plan-card">
-        <div class="plan-card-header plan-card-header--purple">
-          <span class="plan-card-icon">💰</span>
-          <h4>Budget — Per Person</h4>
-        </div>
-        <div class="plan-budget-list">
-          <div class="plan-budget-row">
-            <span class="plan-budget-icon">🏨</span>
-            <div class="plan-budget-bar-wrap">
-              <div class="plan-budget-label-row"><span>Accommodation</span><span class="plan-budget-amt">₹${(budgetData.accommodation || 0).toLocaleString()}</span></div>
-              <div class="plan-budget-bar"><div class="plan-budget-fill" style="width:${bPct(budgetData.accommodation)}%;background:var(--lc)"></div></div>
-            </div>
-          </div>
-          <div class="plan-budget-row">
-            <span class="plan-budget-icon">🍽️</span>
-            <div class="plan-budget-bar-wrap">
-              <div class="plan-budget-label-row"><span>Food</span><span class="plan-budget-amt">₹${(budgetData.food || 0).toLocaleString()}</span></div>
-              <div class="plan-budget-bar"><div class="plan-budget-fill" style="width:${bPct(budgetData.food)}%;background:#f59e0b"></div></div>
-            </div>
-          </div>
-          <div class="plan-budget-row">
-            <span class="plan-budget-icon">🚆</span>
-            <div class="plan-budget-bar-wrap">
-              <div class="plan-budget-label-row"><span>Transport</span><span class="plan-budget-amt">₹${(budgetData.transport || 0).toLocaleString()}</span></div>
-              <div class="plan-budget-bar"><div class="plan-budget-fill" style="width:${bPct(budgetData.transport)}%;background:#8b5cf6"></div></div>
-            </div>
-          </div>
-          <div class="plan-budget-row">
-            <span class="plan-budget-icon">🎭</span>
-            <div class="plan-budget-bar-wrap">
-              <div class="plan-budget-label-row"><span>Activities</span><span class="plan-budget-amt">₹${(budgetData.activities || 0).toLocaleString()}</span></div>
-              <div class="plan-budget-bar"><div class="plan-budget-fill" style="width:${bPct(budgetData.activities)}%;background:#ec4899"></div></div>
-            </div>
-          </div>
-          <div class="plan-budget-total">
-            <span>Per Person</span><span>₹${total.toLocaleString()}</span>
-          </div>
-          ${people > 1 ? `<div class="plan-budget-total plan-budget-all" style="border-top:1px dashed var(--border);margin-top:.3rem;padding-top:.5rem;color:var(--uv)">
-            <span>Total (${people} people)</span><span>₹${totalAll.toLocaleString()}</span>
-          </div>` : ''}
-        </div>
-      </div>
-    </div>
-
-    ${hotelsHtml}
-
-    <div class="plan-card plan-card-full">
+    <!-- ── DAY-BY-DAY ITINERARY (ROAMY STYLE) ── -->
+    <div class="plan-card plan-card-full rp-itinerary-card">
       <div class="plan-card-header plan-card-header--blue">
         <span class="plan-card-icon">📅</span>
         <h4>Day-by-Day Itinerary</h4>
+        <span class="rp-ai-badge">✦ AI Generated</span>
       </div>
-      <div class="plan-days-grid">
-        ${(plan.day_plan || []).map(d => {
-        const morning = typeof d.morning === 'object' ? d.morning : { time: '7:00 AM – 11:00 AM', activity: d.morning, place: '', tip: '' };
-        const afternoon = typeof d.afternoon === 'object' ? d.afternoon : { time: '11:00 AM – 3:00 PM', activity: d.afternoon, place: '', tip: '' };
-        const evening = typeof d.evening === 'object' ? d.evening : { time: '4:00 PM – 8:00 PM', activity: d.evening, place: '', tip: '' };
-        return `
-        <div class="plan-day-card">
-          <div class="plan-day-badge">Day ${d.day}</div>
-          <div class="plan-day-title">${d.title || `Day ${d.day} in ${plan.city || destination}`}</div>
-          <div class="plan-day-activities">
-            <div class="plan-day-act">
-              <span class="plan-day-act-dot plan-day-act-dot--morning"></span>
-              <div>
-                <span class="plan-act-label">🌅 Morning</span>
-                <span class="plan-act-time">${morning.time || ''}</span>
-                <p>${morning.activity || ''}${morning.place ? ` — <em>${morning.place}</em>` : ''}${morning.tip ? `<br><small class="plan-act-tip">💡 ${morning.tip}</small>` : ''}</p>
-              </div>
-            </div>
-            <div class="plan-day-act">
-              <span class="plan-day-act-dot plan-day-act-dot--afternoon"></span>
-              <div>
-                <span class="plan-act-label">☀️ Afternoon</span>
-                <span class="plan-act-time">${afternoon.time || ''}</span>
-                <p>${afternoon.activity || ''}${afternoon.place ? ` — <em>${afternoon.place}</em>` : ''}${afternoon.tip ? `<br><small class="plan-act-tip">💡 ${afternoon.tip}</small>` : ''}</p>
-              </div>
-            </div>
-            <div class="plan-day-act">
-              <span class="plan-day-act-dot plan-day-act-dot--evening"></span>
-              <div>
-                <span class="plan-act-label">🌙 Evening</span>
-                <span class="plan-act-time">${evening.time || ''}</span>
-                <p>${evening.activity || ''}${evening.place ? ` — <em>${evening.place}</em>` : ''}${evening.tip ? `<br><small class="plan-act-tip">💡 ${evening.tip}</small>` : ''}</p>
-              </div>
-            </div>
-            ${d.food ? `<div class="plan-day-act"><span class="plan-day-act-dot plan-day-act-dot--food"></span><div><span class="plan-act-label">🍽️ Food</span><p>${d.food}</p></div></div>` : ''}
+      <div class="rp-tabs-wrap">
+        <div class="rp-day-tabs" id="rpDayTabs">${tabsHtml}</div>
+      </div>
+      <div class="rp-days-container" id="rpDaysContainer">${daysHtml}</div>
+    </div>
+
+    <!-- TRANSPORT — full multi-mode section -->
+    ${plan.transport ? (() => {
+            const t = plan.transport;
+            // Support both old flat format and new structured format
+            const isNew = t.options && Array.isArray(t.options);
+            if (!isNew) {
+                // legacy flat format fallback render
+                return `<div class="plan-card plan-card-full plan-transport-card">
+              <div class="plan-card-header plan-card-header--blue"><span class="plan-card-icon">🚆</span><h4>How to Get There</h4></div>
+              <div class="plan-transport-grid">
+                ${t.how_to_reach ? `<div class="plan-transport-item"><span class="plan-transport-icon">✈️</span><div><div class="plan-transport-label">Best Route</div><div class="plan-transport-val">${t.how_to_reach}</div></div></div>` : ''}
+                ${t.train ? `<div class="plan-transport-item"><span class="plan-transport-icon">🚂</span><div><div class="plan-transport-label">Train</div><div class="plan-transport-val">${t.train}</div></div></div>` : ''}
+                ${t.local_transport ? `<div class="plan-transport-item"><span class="plan-transport-icon">🛺</span><div><div class="plan-transport-label">Local Transport</div><div class="plan-transport-val">${t.local_transport}</div></div></div>` : ''}
+              </div></div>`;
+            }
+            return `
+        <div class="plan-card plan-card-full rp-transport-card">
+          <div class="plan-card-header plan-card-header--blue">
+            <span class="plan-card-icon">🗺️</span>
+            <h4>How to Get There</h4>
+            <span class="rp-ai-badge">✦ Route Guide</span>
           </div>
+          ${t.summary ? `<div class="rp-transport-summary">${t.summary}</div>` : ''}
+
+          <!-- Transport mode tabs -->
+          <div class="rp-transport-tabs" id="rpTransTabs">
+            ${t.options.map((opt, i) => `
+            <button class="rp-trans-tab ${i === 0 ? 'active' : ''}" onclick="rpSwitchTransport(${i})" style="--tab-color:${opt.color || '#3b82f6'}">
+              <span class="rp-trans-tab-icon">${opt.icon}</span>
+              <span class="rp-trans-tab-label">${opt.mode}</span>
+            </button>`).join('')}
+          </div>
+
+          <!-- Transport route panels -->
+          ${t.options.map((opt, i) => `
+          <div class="rp-trans-panel ${i === 0 ? 'active' : ''}" id="rpTrans${i}">
+            ${(opt.routes || []).map((r, ri) => `
+            <div class="rp-route-card" style="border-left-color:${opt.color || '#3b82f6'}">
+              <div class="rp-route-top">
+                <div class="rp-route-name">${r.name}${r.number && r.number !== '—' ? ` <span class="rp-route-num">#${r.number}</span>` : ''}</div>
+                <div class="rp-route-fare">${r.fare || ''}</div>
+              </div>
+              <div class="rp-route-journey">
+                <div class="rp-route-from">
+                  <div class="rp-route-dot rp-route-dot--from"></div>
+                  <div>
+                    <div class="rp-route-station-label">FROM</div>
+                    <div class="rp-route-station">${r.from || ''}</div>
+                  </div>
+                </div>
+                <div class="rp-route-line">
+                  <span class="rp-route-duration">${r.duration || ''}</span>
+                </div>
+                <div class="rp-route-to">
+                  <div class="rp-route-dot rp-route-dot--to" style="background:${opt.color || '#3b82f6'}"></div>
+                  <div>
+                    <div class="rp-route-station-label">TO</div>
+                    <div class="rp-route-station">${r.to || ''}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="rp-route-meta">
+                ${r.departs ? `<span class="rp-route-chip">🕐 ${r.departs}</span>` : ''}
+                ${r.frequency ? `<span class="rp-route-chip">📅 ${r.frequency}</span>` : ''}
+              </div>
+              ${r.tip ? `<div class="rp-route-tip">💡 ${r.tip}</div>` : ''}
+            </div>`).join('')}
+          </div>`).join('')}
+
+          <!-- Local transport -->
+          ${t.local_transport && t.local_transport.options ? `
+          <div class="rp-local-transport">
+            <div class="rp-local-header">🏙️ Getting Around ${plan.city || destination}</div>
+            <div class="rp-local-grid">
+              ${t.local_transport.options.map(lo => `
+              <div class="rp-local-item">
+                <span class="rp-local-icon">${lo.icon}</span>
+                <div class="rp-local-info">
+                  <div class="rp-local-mode">${lo.mode}</div>
+                  <div class="rp-local-cost">${lo.cost}</div>
+                  ${lo.tip ? `<div class="rp-local-tip">${lo.tip}</div>` : ''}
+                </div>
+              </div>`).join('')}
+            </div>
+          </div>` : (t.local_transport ? `<div class="rp-transport-summary" style="margin-top:.5rem">${typeof t.local_transport === 'string' ? t.local_transport : ''}</div>` : '')}
         </div>`;
-    }).join('')}
+        })() : ''}
+
+    <!-- HOTELS — rich cards with address, amenities, booking link -->
+    ${(plan.hotels && plan.hotels.length) ? `
+    <div class="plan-card plan-card-full rp-hotels-card">
+      <div class="plan-card-header plan-card-header--teal">
+        <span class="plan-card-icon">🏨</span>
+        <h4>Where to Stay</h4>
+        <span class="rp-ai-badge">✦ ${plan.hotels.length} Options</span>
+      </div>
+      <div class="rp-hotels-grid">
+        ${plan.hotels.map(h => {
+            const stars = Math.max(1, Math.min(5, parseInt(h.stars) || Math.round(parseFloat(h.rating || 4))));
+            const typeColor = { Luxury: '#f59e0b', 'Mid-range': '#3b82f6', Budget: '#10b981' };
+            const col = typeColor[h.type] || '#3a8c7e';
+            return `
+        <div class="rp-hotel-card">
+          <div class="rp-hotel-top-row">
+            <div class="rp-hotel-type-badge" style="background:${col}22;color:${col};border-color:${col}44">${h.type || 'Hotel'}</div>
+            <div class="rp-hotel-stars">${'★'.repeat(stars)}<span class="rp-hotel-stars-empty">${'★'.repeat(5 - stars)}</span></div>
+          </div>
+          <div class="rp-hotel-name">${h.name}</div>
+          <div class="rp-hotel-location">
+            <span>📍</span>
+            <div>
+              <div class="rp-hotel-area-text">${h.area || ''}</div>
+              ${h.address ? `<div class="rp-hotel-address">${h.address}</div>` : ''}
+              ${h.distance_from_center ? `<div class="rp-hotel-dist">🗺️ ${h.distance_from_center}</div>` : ''}
+            </div>
+          </div>
+          ${h.rating ? `
+          <div class="rp-hotel-rating-row">
+            <div class="rp-hotel-score">${h.rating}</div>
+            <div class="rp-hotel-score-bar"><div class="rp-hotel-score-fill" style="width:${(parseFloat(h.rating) / 5 * 100)}%"></div></div>
+            <div class="rp-hotel-score-label">Guest Rating</div>
+          </div>` : ''}
+          ${h.amenities && h.amenities.length ? `
+          <div class="rp-hotel-amenities">
+            ${h.amenities.slice(0, 5).map(a => `<span class="rp-amenity-chip">${a}</span>`).join('')}
+          </div>` : ''}
+          <div class="rp-hotel-price-row">
+            <div class="rp-hotel-price-info">
+              <div class="rp-hotel-price-main">₹${h.price_per_night || ''}<span>/night</span></div>
+              ${h.price_range ? `<div class="rp-hotel-price-range">Range: ${h.price_range}</div>` : ''}
+            </div>
+            ${h.book_via ? `<div class="rp-hotel-book-via">Book via<br><strong>${h.book_via}</strong></div>` : ''}
+          </div>
+          ${h.why ? `<div class="rp-hotel-why"><span>✦</span> ${h.why}</div>` : ''}
+        </div>`}).join('')}
+      </div>
+    </div>` : ''}
+
+    <!-- BUDGET -->
+    <div class="plan-card plan-card-full">
+      <div class="plan-card-header plan-card-header--purple">
+        <span class="plan-card-icon">💰</span>
+        <h4>Budget Breakdown — Per Person</h4>
+      </div>
+      <div class="plan-budget-list">
+        ${[['🏨', 'Accommodation', 'accommodation', 'var(--lc)'], ['🍽️', 'Food', 'food', '#f59e0b'], ['🚆', 'Transport', 'transport', '#8b5cf6'], ['🎭', 'Activities', 'activities', '#ec4899']].map(([ic, lb, key, col]) => `
+        <div class="plan-budget-row">
+          <span class="plan-budget-icon">${ic}</span>
+          <div class="plan-budget-bar-wrap">
+            <div class="plan-budget-label-row"><span>${lb}</span><span class="plan-budget-amt">₹${(budgetData[key] || 0).toLocaleString()}</span></div>
+            <div class="plan-budget-bar"><div class="plan-budget-fill" style="width:${bPct(budgetData[key])}%;background:${col}"></div></div>
+          </div>
+        </div>`).join('')}
+        <div class="plan-budget-total"><span>Per Person Total</span><span>₹${total.toLocaleString()}</span></div>
+        ${people > 1 ? `<div class="plan-budget-total" style="border-top:1px dashed var(--border);margin-top:.3rem;padding-top:.5rem;color:var(--uv)"><span>Total (${people} people)</span><span>₹${totalAll.toLocaleString()}</span></div>` : ''}
       </div>
     </div>
 
-    ${plan.tips ? `
-    <div class="plan-card plan-card-full plan-tips-card">
-      <div class="plan-tips-icon">💡</div>
-      <div>
-        <div class="plan-tips-label">Local Insider Tip</div>
-        <p class="plan-tips-text">${plan.tips}</p>
+    <!-- LOCAL TIPS -->
+    ${(plan.local_tips && plan.local_tips.length) || plan.tips ? `
+    <div class="plan-card plan-card-full rp-tips-card">
+      <div class="plan-card-header plan-card-header--gold">
+        <span class="plan-card-icon">💡</span>
+        <h4>Local Insider Tips</h4>
       </div>
-    </div>` : ''}`;
+      <div class="rp-tips-list">
+        ${(plan.local_tips || [plan.tips]).filter(Boolean).map(t => `
+        <div class="rp-tip-item">
+          <span class="rp-tip-dot">✦</span>
+          <span>${t}</span>
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <!-- BEST TIME & EMERGENCY -->
+    <div class="plan-grid-2">
+      ${plan.best_time ? `
+      <div class="plan-card">
+        <div class="plan-card-header plan-card-header--teal">
+          <span class="plan-card-icon">🌤️</span>
+          <h4>Best Time to Visit</h4>
+        </div>
+        <div class="rp-info-body">${plan.best_time}</div>
+      </div>` : ''}
+      ${plan.emergency ? `
+      <div class="plan-card">
+        <div class="plan-card-header plan-card-header--orange">
+          <span class="plan-card-icon">🆘</span>
+          <h4>Emergency Numbers</h4>
+        </div>
+        <div class="rp-emergency-list">
+          <div class="rp-em-item"><span>🚔 Police</span><strong>${plan.emergency.police || '100'}</strong></div>
+          <div class="rp-em-item"><span>📞 Tourist Helpline</span><strong>${plan.emergency.tourist_helpline || '1800-111-363'}</strong></div>
+          ${plan.emergency.hospital ? `<div class="rp-em-item"><span>🏥 Hospital</span><strong>${plan.emergency.hospital}</strong></div>` : ''}
+        </div>
+      </div>` : ''}
+    </div>
+    `;
 
     document.getElementById('wizFooter').innerHTML = `
       <button class="wiz-btn-back" onclick="wizReset()">← Plan Another</button>
-      <span class="wiz-step-count">✦ Plan Generated</span>
+      <span class="wiz-step-count">✦ AI Plan Ready</span>
       <button class="wiz-btn-next wiz-btn-pdf" onclick="wizDownloadPDF()">📄 Download PDF</button>`;
 
     document.getElementById('wizResultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     window._lastPlanData = { plan, destination, duration, wizState: { ...wizState }, total, totalAll, budgetLabel, foodLabel };
+}
+
+// ── Tab switching for Roamy-style day view ──────────────────────
+function rpSwitchDay(idx) {
+    document.querySelectorAll('.rp-day-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+    document.querySelectorAll('.rp-day-panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+    const panel = document.getElementById(`rpDay${idx}`);
+    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ── Tab switching for transport modes ───────────────────────────
+function rpSwitchTransport(idx) {
+    document.querySelectorAll('.rp-trans-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+    document.querySelectorAll('.rp-trans-panel').forEach((p, i) => p.classList.toggle('active', i === idx));
 }
 
 function wizDownloadPDF() {
@@ -1303,6 +1486,7 @@ function removeTyping(id) {
     const el = document.getElementById(id);
     if (el) el.remove();
 }
+
 
 // ═══════════════════════════════════════════════════════════════
 //  GROQ AI — calls your secure backend proxy
