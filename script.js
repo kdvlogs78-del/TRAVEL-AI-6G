@@ -1549,44 +1549,34 @@ function removeTyping(id) {
 //  ⬇️  PASTE YOUR FREE GROQ API KEY BELOW
 //     Get one free at: https://console.groq.com → API Keys
 // ═══════════════════════════════════════════════════════════════
-const GROQ_API_KEY = 'YOUR_GROQ_API_KEY_HERE'; // ← Replace this!
-const GROQ_MODEL   = 'llama-3.3-70b-versatile';
-const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
+ // ← Replace this!
+const AI_PROXY_URL = 'https://travel-ai-server-btgt.onrender.com/api/chat';
 
+// FIX 1: Renamed from callClaudeAI → callGroqAI so all callers work
 async function callGroqAI(messages) {
-    if (!GROQ_API_KEY || GROQ_API_KEY === 'YOUR_GROQ_API_KEY_HERE') {
-        throw new Error('Add your Groq API key in script.js (get it free at console.groq.com)');
-    }
-
+    // Filter to only user/assistant roles
     const apiMessages = messages
         .filter(m => m.role === 'user' || m.role === 'assistant')
         .map(m => ({ role: m.role, content: m.content }));
 
-    if (!apiMessages.length) throw new Error('No messages to send');
+    // FIX 4: Only check for empty messages, no fragile role check
+    if (!apiMessages.length) {
+        throw new Error('No messages to send');
+    }
 
-    const response = await fetch(GROQ_URL, {
+    const response = await fetch(AI_PROXY_URL, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_API_KEY}`
-        },
-        body: JSON.stringify({
-            model: GROQ_MODEL,
-            messages: apiMessages,
-            max_tokens: 4096,
-            temperature: 0.7
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: apiMessages })
     });
 
     if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        if (response.status === 401) throw new Error('Invalid Groq API key — check GROQ_API_KEY in script.js');
-        if (response.status === 429) throw new Error('Rate limit — wait a moment and try again');
-        throw new Error(err?.error?.message || `Groq error ${response.status}`);
+        throw new Error(err?.error || `Server Error: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || '';
+    return data.reply || '';
 }
 
 // ─── CONTACT FORM ───────────────────────────────────────────────
