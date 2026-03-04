@@ -6858,3 +6858,75 @@ input:-webkit-autofill:focus {
 [data-theme="light"] .reviews-cta-card {
   box-shadow: 0 4px 24px rgba(0,0,0,0.08);
 }
+/* ════════════════════════════════════════════════════════════
+   AI PLANNER — LIVE RESPONSE LOADING PANEL
+   ════════════════════════════════════════════════════════════ */
+
+#wizAILoadPanel {
+  display: none;
+  padding: 0.5rem 0.5rem 1.5rem;
+  animation: wizSlideIn .35s ease both;
+}
+.wiz-ai-load-wrap {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2rem 1.75rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.wiz-ai-load-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(171,209,198,0.04) 0%, transparent 50%, rgba(171,209,198,0.02) 100%);
+  pointer-events: none;
+}
+.wiz-ai-load-top { display: flex; align-items: center; gap: 1.25rem; }
+.wiz-ai-orb { position: relative; width: 56px; height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.wiz-ai-orb-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--uv); opacity: 0.5; animation: wizOrbPulse 2s ease-in-out infinite; }
+.wiz-ai-orb-ring2 { inset: -8px; border-color: var(--lc); opacity: 0.2; animation-delay: 0.6s; }
+@keyframes wizOrbPulse {
+  0%, 100% { transform: scale(1);    opacity: 0.5; }
+  50%       { transform: scale(1.18); opacity: 0.15; }
+}
+.wiz-ai-orb-icon { font-size: 1.4rem; color: var(--uv); z-index: 1; animation: wizOrbSpin 6s linear infinite; }
+@keyframes wizOrbSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.wiz-ai-load-text h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.35rem; font-weight: 700; color: var(--text); margin-bottom: 0.25rem; }
+.wiz-ai-load-text p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+.wiz-ai-load-text p strong { color: var(--uv); }
+.wiz-ai-stages { display: flex; flex-direction: column; gap: 0.65rem; }
+.wiz-ai-stage { display: flex; align-items: center; gap: 0.75rem; font-size: 0.84rem; color: var(--text-muted); transition: color 0.3s, opacity 0.3s; }
+.wiz-ai-stage.pending { opacity: 0.35; }
+.wiz-ai-stage.done    { color: var(--uv); opacity: 1; }
+.wiz-ai-stage-dot { position: relative; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; background: transparent; transition: background 0.3s, border-color 0.3s; }
+.wiz-ai-stage-dot.anim { border-color: var(--uv); background: var(--uv); animation: wizDotPing 1s ease-in-out infinite; }
+.wiz-ai-stage.done .wiz-ai-stage-dot { background: var(--uv); border-color: var(--uv); }
+.wiz-ai-stage.done .wiz-ai-stage-dot::after { content: '✓'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; color: #0a1412; font-weight: 900; }
+@keyframes wizDotPing {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(171,209,198,0.5); }
+  50%       { box-shadow: 0 0 0 6px rgba(171,209,198,0);   }
+}
+.wiz-ai-progress-wrap { display: flex; align-items: center; gap: 0.75rem; }
+.wiz-ai-progress-bar { flex: 1; height: 6px; background: var(--bg-card); border-radius: 99px; overflow: hidden; border: 1px solid var(--border); }
+.wiz-ai-progress-fill { height: 100%; background: linear-gradient(90deg, #3a8c7e, var(--uv)); border-radius: 99px; width: 0%; transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+.wiz-ai-progress-label { font-size: 0.72rem; font-weight: 700; color: var(--uv); width: 32px; text-align: right; flex-shrink: 0; }
+.wiz-ai-typing-row { display: flex; align-items: center; gap: 0.65rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+.wiz-ai-typing-dots { display: flex; gap: 4px; align-items: center; }
+.wiz-ai-typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--uv); animation: wizTypingBounce 1.2s ease-in-out infinite; }
+.wiz-ai-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.wiz-ai-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes wizTypingBounce {
+  0%, 80%, 100% { transform: translateY(0);   opacity: 0.4; }
+  40%            { transform: translateY(-5px); opacity: 1;   }
+}
+.wiz-ai-typing-text { font-size: 0.76rem; color: var(--text-dim); font-style: italic; }
+[data-theme="light"] .wiz-ai-load-wrap { background: #f3faf8; }
+@media (max-width: 600px) {
+  .wiz-ai-load-wrap { padding: 1.5rem 1.25rem; gap: 1.1rem; }
+  .wiz-ai-load-text h3 { font-size: 1.1rem; }
+  .wiz-ai-stage { font-size: 0.78rem; }
+}
