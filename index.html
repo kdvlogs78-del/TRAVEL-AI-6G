@@ -13,6 +13,275 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&family=Bebas+Neue&display=swap"
     rel="stylesheet" />
+  <!-- Hero Slideshow Styles -->
+  <style>
+    /* ── HERO SLIDESHOW ── */
+    .hero-img {
+      display: none !important;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .hero-slide {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      opacity: 0;
+      animation: heroSlideShow 42s infinite;
+      will-change: opacity, transform;
+    }
+
+    .hero-slide:nth-child(1) {
+      animation-delay: 0s;
+    }
+
+    .hero-slide:nth-child(2) {
+      animation-delay: 6s;
+    }
+
+    .hero-slide:nth-child(3) {
+      animation-delay: 12s;
+    }
+
+    .hero-slide:nth-child(4) {
+      animation-delay: 18s;
+    }
+
+    .hero-slide:nth-child(5) {
+      animation-delay: 24s;
+    }
+
+    .hero-slide:nth-child(6) {
+      animation-delay: 30s;
+    }
+
+    .hero-slide:nth-child(7) {
+      animation-delay: 36s;
+    }
+
+    @keyframes heroSlideShow {
+      0% {
+        opacity: 0;
+        transform: scale(1.00);
+      }
+
+      2.38% {
+        opacity: 1;
+        transform: scale(1.00);
+      }
+
+      14.28% {
+        opacity: 1;
+        transform: scale(1.07);
+      }
+
+      16.66% {
+        opacity: 0;
+        transform: scale(1.07);
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(1.00);
+      }
+    }
+
+    /* ── DOT INDICATORS ── */
+    .hero-dots {
+      position: absolute;
+      right: 1.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      z-index: 5;
+    }
+
+    .hero-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.35);
+      transition: background 0.3s, height 0.3s;
+      animation: dotActivate 42s infinite;
+    }
+
+    .hero-dot:nth-child(1) {
+      animation-delay: 0s;
+    }
+
+    .hero-dot:nth-child(2) {
+      animation-delay: 6s;
+    }
+
+    .hero-dot:nth-child(3) {
+      animation-delay: 12s;
+    }
+
+    .hero-dot:nth-child(4) {
+      animation-delay: 18s;
+    }
+
+    .hero-dot:nth-child(5) {
+      animation-delay: 24s;
+    }
+
+    .hero-dot:nth-child(6) {
+      animation-delay: 30s;
+    }
+
+    .hero-dot:nth-child(7) {
+      animation-delay: 36s;
+    }
+
+    @keyframes dotActivate {
+      0% {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.35);
+      }
+
+      2.38% {
+        height: 18px;
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      14.28% {
+        height: 18px;
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      16.66% {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.35);
+      }
+
+      100% {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.35);
+      }
+    }
+
+    /* ── PLACE CAPTION ── */
+    .hero-caption {
+      position: absolute;
+      bottom: 6.5rem;
+      left: 2.5rem;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .hero-cap-item {
+      display: none;
+      flex-direction: column;
+      gap: 0.15rem;
+      animation: capItemAnim 42s infinite;
+    }
+
+    .hero-cap-item:nth-child(1) {
+      animation-delay: 0s;
+    }
+
+    .hero-cap-item:nth-child(2) {
+      animation-delay: 6s;
+    }
+
+    .hero-cap-item:nth-child(3) {
+      animation-delay: 12s;
+    }
+
+    .hero-cap-item:nth-child(4) {
+      animation-delay: 18s;
+    }
+
+    .hero-cap-item:nth-child(5) {
+      animation-delay: 24s;
+    }
+
+    .hero-cap-item:nth-child(6) {
+      animation-delay: 30s;
+    }
+
+    .hero-cap-item:nth-child(7) {
+      animation-delay: 36s;
+    }
+
+    @keyframes capItemAnim {
+      0% {
+        opacity: 0;
+        display: flex;
+        transform: translateY(8px);
+      }
+
+      2.38% {
+        opacity: 1;
+        display: flex;
+        transform: translateY(0);
+      }
+
+      13% {
+        opacity: 1;
+        display: flex;
+        transform: translateY(0);
+      }
+
+      16.66% {
+        opacity: 0;
+        display: flex;
+        transform: translateY(-6px);
+      }
+
+      16.67% {
+        opacity: 0;
+        display: none;
+      }
+
+      100% {
+        opacity: 0;
+        display: none;
+      }
+    }
+
+    .hero-cap-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
+      font-style: italic;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.92);
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+      line-height: 1.2;
+    }
+
+    .hero-cap-loc {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(171, 209, 198, 0.85);
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+    }
+
+    @media (max-width: 600px) {
+      .hero-dots {
+        right: 0.75rem;
+      }
+
+      .hero-caption {
+        bottom: 7.5rem;
+        left: 1.25rem;
+      }
+
+      .hero-cap-name {
+        font-size: 0.95rem;
+      }
+    }
+  </style>
   <!-- State buttons styles -->
   <style>
     /* ── STATES LIST / BUTTONS ── */
@@ -1269,59 +1538,78 @@
       }
     }
 
-      /* ── SUMMARY EDIT BUTTONS ─────────────────────────── */
-      .wiz-s-top {
-        display: flex;
-        align-items: center;
-        gap: .45rem;
-        margin-bottom: .35rem;
-      }
-      .wiz-s-top .wiz-s-icon { font-size: 1.1rem; flex-shrink: 0; }
-      .wiz-s-top .wiz-s-label {
-        font-size: .65rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .06em;
-        color: var(--text-muted, #7fb8ac);
-        flex: 1;
-      }
-      .wiz-edit-btn {
-        font-size: .62rem;
-        font-weight: 700;
-        color: var(--lc, #3a8c7e);
-        background: rgba(58,140,126,.1);
-        border: 1px solid rgba(58,140,126,.25);
-        border-radius: 20px;
-        padding: .2rem .65rem;
-        cursor: pointer;
-        transition: background .15s, transform .1s;
-        white-space: nowrap;
-        flex-shrink: 0;
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-      }
-      .wiz-edit-btn:hover {
-        background: rgba(58,140,126,.2);
-        transform: scale(1.04);
-      }
-      .wiz-edit-btn:active { transform: scale(.96); }
+    /* ── SUMMARY EDIT BUTTONS ─────────────────────────── */
+    .wiz-s-top {
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      margin-bottom: .35rem;
+    }
 
-      /* light theme */
-      [data-theme="light"] .wiz-edit-btn {
-        color: #2a7068;
-        background: rgba(58,140,126,.08);
-        border-color: rgba(58,140,126,.3);
+    .wiz-s-top .wiz-s-icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .wiz-s-top .wiz-s-label {
+      font-size: .65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--text-muted, #7fb8ac);
+      flex: 1;
+    }
+
+    .wiz-edit-btn {
+      font-size: .62rem;
+      font-weight: 700;
+      color: var(--lc, #3a8c7e);
+      background: rgba(58, 140, 126, .1);
+      border: 1px solid rgba(58, 140, 126, .25);
+      border-radius: 20px;
+      padding: .2rem .65rem;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+      white-space: nowrap;
+      flex-shrink: 0;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .wiz-edit-btn:hover {
+      background: rgba(58, 140, 126, .2);
+      transform: scale(1.04);
+    }
+
+    .wiz-edit-btn:active {
+      transform: scale(.96);
+    }
+
+    /* light theme */
+    [data-theme="light"] .wiz-edit-btn {
+      color: #2a7068;
+      background: rgba(58, 140, 126, .08);
+      border-color: rgba(58, 140, 126, .3);
+    }
+
+    /* Pulse animation on the card that was just edited */
+    @keyframes sumEditPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(58, 140, 126, .5);
       }
 
-      /* Pulse animation on the card that was just edited */
-      @keyframes sumEditPulse {
-        0%   { box-shadow: 0 0 0 0 rgba(58,140,126,.5); }
-        70%  { box-shadow: 0 0 0 8px rgba(58,140,126,0); }
-        100% { box-shadow: 0 0 0 0 rgba(58,140,126,0); }
+      70% {
+        box-shadow: 0 0 0 8px rgba(58, 140, 126, 0);
       }
-      .wiz-summary-item.just-edited {
-        animation: sumEditPulse .6s ease-out;
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(58, 140, 126, 0);
       }
+    }
+
+    .wiz-summary-item.just-edited {
+      animation: sumEditPulse .6s ease-out;
+    }
   </style>
 </head>
 
@@ -1351,7 +1639,8 @@
           <div class="tc-section-title">✦ Our Service</div>
           <p class="tc-text">By using <strong>Plan Your Trip India</strong>, you agree that our platform provides
             <strong>travel planning guidance and informational services only</strong>. We offer personalised travel
-            suggestions, destination details, and itineraries to help users plan their trips within India.</p>
+            suggestions, destination details, and itineraries to help users plan their trips within India.
+          </p>
         </div>
 
         <div class="tc-section">
@@ -1472,7 +1761,61 @@
     <section id="home" class="hero">
       <div class="hero-bg">
         <img src="Taj%20Mahal.jpg" alt="Taj Mahal India" class="hero-img" onerror="this.style.display='none'" />
+        <!-- Slide 1: Taj Mahal -->
+        <div class="hero-slide"
+          style="background-image:url('https://images.unsplash.com/photo-1564507592333-c60657eea523?w=1600&q=80')">
+        </div>
+        <!-- Slide 2: Amber Fort, Jaipur -->
+        <div class="hero-slide"
+          style="background-image:url('https://images.unsplash.com/photo-1599661046289-e31897846e41?w=1600&q=80')">
+        </div>
+        <!-- Slide 3: Kerala Backwaters -->
+        <div class="hero-slide"
+          style="background-image:url('https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=1600&q=80')">
+        </div>
+        <!-- Slide 4: Pangong Lake, Ladakh -->
+        <div class="hero-slide"
+          style="background-image:url('https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=1600&q=80')">
+        </div>
+        <!-- Slide 5: Varanasi Ghats -->
+        <div class="hero-slide"
+          style="background-image:url('https://images.unsplash.com/photo-1561361058-c24cecae35ca?w=1600&q=80')"></div>
+        <!-- Slide 6: Goa Beach -->
+        <div class="hero-slide"
+          style="background-image:url('https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=1600&q=80')">
+        </div>
+        <!-- Slide 7: Manali Mountains -->
+        <div class="hero-slide"
+          style="background-image:url('https://images.unsplash.com/photo-1626015365107-4c6e9f3a2c67?w=1600&q=80')">
+        </div>
         <div class="hero-overlay"></div>
+        <!-- Dot indicators -->
+        <div class="hero-dots">
+          <div class="hero-dot"></div>
+          <div class="hero-dot"></div>
+          <div class="hero-dot"></div>
+          <div class="hero-dot"></div>
+          <div class="hero-dot"></div>
+          <div class="hero-dot"></div>
+          <div class="hero-dot"></div>
+        </div>
+        <!-- Place captions -->
+        <div class="hero-caption">
+          <div class="hero-cap-item"><span class="hero-cap-name">Taj Mahal</span><span class="hero-cap-loc">Agra, Uttar
+              Pradesh</span></div>
+          <div class="hero-cap-item"><span class="hero-cap-name">Amber Fort</span><span class="hero-cap-loc">Jaipur,
+              Rajasthan</span></div>
+          <div class="hero-cap-item"><span class="hero-cap-name">Kerala Backwaters</span><span
+              class="hero-cap-loc">Alleppey, Kerala</span></div>
+          <div class="hero-cap-item"><span class="hero-cap-name">Pangong Lake</span><span class="hero-cap-loc">Leh,
+              Ladakh</span></div>
+          <div class="hero-cap-item"><span class="hero-cap-name">Dashashwamedh Ghat</span><span
+              class="hero-cap-loc">Varanasi, Uttar Pradesh</span></div>
+          <div class="hero-cap-item"><span class="hero-cap-name">Baga Beach</span><span class="hero-cap-loc">North
+              Goa</span></div>
+          <div class="hero-cap-item"><span class="hero-cap-name">Rohtang Pass</span><span class="hero-cap-loc">Manali,
+              Himachal Pradesh</span></div>
+        </div>
       </div>
       <div class="hero-content">
         <p class="hero-greeting" id="greetingText">Namaste 🙏</p>
@@ -1616,6 +1959,7 @@
             <div class="map-result-content" id="mapResultContent" style="display:none"></div>
             <div class="map-result-actions" id="mapResultActions" style="display:none">
               <button class="btn-map-chat" onclick="chatAboutState()">💬 Chat about this state</button>
+              <button class="btn-map-plan" onclick="planThisState()">✦ Plan a Trip Here</button>
             </div>
           </div>
         </div>
@@ -2187,7 +2531,8 @@
       <div class="section-header-wrap">
         <div class="section-label-tag">Testimonials</div>
         <h2 class="section-title-main">Loved by<br><em>Real Travellers</em></h2>
-        <p class="section-sub-text">Thousands of Indians have planned unforgettable journeys with us — here's what they say.</p>
+        <p class="section-sub-text">Thousands of Indians have planned unforgettable journeys with us — here's what they
+          say.</p>
       </div>
 
       <!-- Overall Rating Bar -->
@@ -2201,11 +2546,31 @@
           </div>
         </div>
         <div class="reviews-bars">
-          <div class="reviews-bar-row"><span>5 ★</span><div class="reviews-bar-track"><div class="reviews-bar-fill" style="width:82%"></div></div><span>82%</span></div>
-          <div class="reviews-bar-row"><span>4 ★</span><div class="reviews-bar-track"><div class="reviews-bar-fill" style="width:12%"></div></div><span>12%</span></div>
-          <div class="reviews-bar-row"><span>3 ★</span><div class="reviews-bar-track"><div class="reviews-bar-fill" style="width:4%"></div></div><span>4%</span></div>
-          <div class="reviews-bar-row"><span>2 ★</span><div class="reviews-bar-track"><div class="reviews-bar-fill" style="width:1%"></div></div><span>1%</span></div>
-          <div class="reviews-bar-row"><span>1 ★</span><div class="reviews-bar-track"><div class="reviews-bar-fill" style="width:1%"></div></div><span>1%</span></div>
+          <div class="reviews-bar-row"><span>5 ★</span>
+            <div class="reviews-bar-track">
+              <div class="reviews-bar-fill" style="width:82%"></div>
+            </div><span>82%</span>
+          </div>
+          <div class="reviews-bar-row"><span>4 ★</span>
+            <div class="reviews-bar-track">
+              <div class="reviews-bar-fill" style="width:12%"></div>
+            </div><span>12%</span>
+          </div>
+          <div class="reviews-bar-row"><span>3 ★</span>
+            <div class="reviews-bar-track">
+              <div class="reviews-bar-fill" style="width:4%"></div>
+            </div><span>4%</span>
+          </div>
+          <div class="reviews-bar-row"><span>2 ★</span>
+            <div class="reviews-bar-track">
+              <div class="reviews-bar-fill" style="width:1%"></div>
+            </div><span>1%</span>
+          </div>
+          <div class="reviews-bar-row"><span>1 ★</span>
+            <div class="reviews-bar-track">
+              <div class="reviews-bar-fill" style="width:1%"></div>
+            </div><span>1%</span>
+          </div>
         </div>
       </div>
 
@@ -2232,7 +2597,8 @@
             <div class="review-badge verified">✓ Verified</div>
           </div>
           <div class="review-stars">★★★★★</div>
-          <p class="review-text">"The AI itinerary for Ladakh was spot-on — it suggested the Nubra Valley route I'd never have found myself. 12 days, zero stress. This planner is genuinely magical for India trips."</p>
+          <p class="review-text">"The AI itinerary for Ladakh was spot-on — it suggested the Nubra Valley route I'd
+            never have found myself. 12 days, zero stress. This planner is genuinely magical for India trips."</p>
           <div class="review-footer">
             <span class="review-tag">🌌 Ladakh</span>
             <span class="review-date">January 2025</span>
@@ -2249,7 +2615,8 @@
             <div class="review-badge verified">✓ Verified</div>
           </div>
           <div class="review-stars">★★★★★</div>
-          <p class="review-text">"Planned a romantic backwaters trip for our anniversary. The hidden gems tab showed us spots the usual tourist buses skip. Alleppey at sunset — absolutely breathtaking. Will use this again!"</p>
+          <p class="review-text">"Planned a romantic backwaters trip for our anniversary. The hidden gems tab showed us
+            spots the usual tourist buses skip. Alleppey at sunset — absolutely breathtaking. Will use this again!"</p>
           <div class="review-footer">
             <span class="review-tag">🌿 Kerala</span>
             <span class="review-date">February 2025</span>
@@ -2266,7 +2633,8 @@
             <div class="review-badge verified">✓ Verified</div>
           </div>
           <div class="review-stars">★★★★★</div>
-          <p class="review-text">"The budget breakdown for our Goa trip was insanely accurate — we spent almost exactly what the AI predicted. The street food guide led us to this tiny xacuti shack that was life-changing."</p>
+          <p class="review-text">"The budget breakdown for our Goa trip was insanely accurate — we spent almost exactly
+            what the AI predicted. The street food guide led us to this tiny xacuti shack that was life-changing."</p>
           <div class="review-footer">
             <span class="review-tag">🏖️ Goa</span>
             <span class="review-date">December 2024</span>
@@ -2283,7 +2651,9 @@
             <div class="review-badge">Solo Traveller</div>
           </div>
           <div class="review-stars">★★★★★</div>
-          <p class="review-text">"As a solo female traveller, safety was my #1 concern. The AI factored that in and suggested well-lit areas, reputed hostels and daylight timings. Jaipur, Udaipur, Jodhpur — I did it all safely and confidently!"</p>
+          <p class="review-text">"As a solo female traveller, safety was my #1 concern. The AI factored that in and
+            suggested well-lit areas, reputed hostels and daylight timings. Jaipur, Udaipur, Jodhpur — I did it all
+            safely and confidently!"</p>
           <div class="review-footer">
             <span class="review-tag">🏯 Rajasthan</span>
             <span class="review-date">March 2025</span>
@@ -2300,7 +2670,9 @@
             <div class="review-badge verified">✓ Verified</div>
           </div>
           <div class="review-stars">★★★★☆</div>
-          <p class="review-text">"The Darjeeling itinerary was beautiful — Tiger Hill sunrise, tea estate walks, the toy train tips. Only reason it's 4 stars: I wish there were more Northeast recommendations. But overall excellent!"</p>
+          <p class="review-text">"The Darjeeling itinerary was beautiful — Tiger Hill sunrise, tea estate walks, the toy
+            train tips. Only reason it's 4 stars: I wish there were more Northeast recommendations. But overall
+            excellent!"</p>
           <div class="review-footer">
             <span class="review-tag">🍵 Darjeeling</span>
             <span class="review-date">November 2024</span>
@@ -2317,7 +2689,9 @@
             <div class="review-badge">Honeymooners</div>
           </div>
           <div class="review-stars">★★★★★</div>
-          <p class="review-text">"Our honeymoon in Andaman was perfect because of this planner. Radhanagar Beach timing, snorkelling spots, the Neil Island guide — everything was curated just right. No booking fees either, which was a huge plus!"</p>
+          <p class="review-text">"Our honeymoon in Andaman was perfect because of this planner. Radhanagar Beach timing,
+            snorkelling spots, the Neil Island guide — everything was curated just right. No booking fees either, which
+            was a huge plus!"</p>
           <div class="review-footer">
             <span class="review-tag">🐢 Andaman</span>
             <span class="review-date">January 2025</span>
@@ -2371,7 +2745,8 @@
           <div class="auth-field">
             <label>Your Review</label>
             <div class="auth-input-wrap">
-              <textarea id="reviewText" class="auth-input" rows="4" placeholder="Tell us about your trip experience..." style="resize:vertical;height:auto;padding-top:.75rem;padding-bottom:.75rem"></textarea>
+              <textarea id="reviewText" class="auth-input" rows="4" placeholder="Tell us about your trip experience..."
+                style="resize:vertical;height:auto;padding-top:.75rem;padding-bottom:.75rem"></textarea>
             </div>
           </div>
           <button class="auth-submit" onclick="submitReview()">
