@@ -41,9 +41,6 @@ function useCurrentLocation() {
                 const city = addr.city
                     || addr.town
                     || addr.municipality
-                    || addr.village
-                    || addr.suburb
-                    || addr.county
                     || '';
 
                 if (city) {
