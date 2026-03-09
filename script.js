@@ -15,6 +15,156 @@ let deferredInstallPrompt = null;
 // System prompt is handled by the backend proxy.
 let chatHistory = [];
 
+// ─── CITY COORDINATES (matches ALL_INDIA_CITIES in index.html) ──
+const CITY_COORDS = {
+    'Delhi':            [28.6139, 77.2090],
+    'Agra':             [27.1767, 78.0081],
+    'Varanasi':         [25.3176, 82.9739],
+    'Lucknow':          [26.8467, 80.9462],
+    'Allahabad':        [25.4358, 81.8463],
+    'Mathura':          [27.4924, 77.6737],
+    'Vrindavan':        [27.5794, 77.6964],
+    'Ayodhya':          [26.7922, 82.1998],
+    'Kanpur':           [26.4499, 80.3319],
+    'Dehradun':         [30.3165, 78.0322],
+    'Rishikesh':        [30.0869, 78.2676],
+    'Haridwar':         [29.9457, 78.1642],
+    'Mussoorie':        [30.4598, 78.0664],
+    'Nainital':         [29.3919, 79.4542],
+    'Shimla':           [31.1048, 77.1734],
+    'Manali':           [32.2432, 77.1892],
+    'Dharamshala':      [32.2190, 76.3234],
+    'Spiti Valley':     [32.2461, 78.0338],
+    'Amritsar':         [31.6340, 74.8723],
+    'Chandigarh':       [30.7333, 76.7794],
+    'Ludhiana':         [30.9010, 75.8573],
+    'Leh':              [34.1526, 77.5771],
+    'Kargil':           [34.5539, 76.1349],
+    'Srinagar':         [34.0837, 74.7973],
+    'Gulmarg':          [34.0484, 74.3805],
+    'Pahalgam':         [34.0161, 75.3150],
+    'Jaipur':           [26.9124, 75.7873],
+    'Jodhpur':          [26.2389, 73.0243],
+    'Udaipur':          [24.5854, 73.7125],
+    'Pushkar':          [26.4899, 74.5511],
+    'Jaisalmer':        [26.9157, 70.9083],
+    'Ranthambore':      [26.0173, 76.5026],
+    'Bikaner':          [28.0229, 73.3119],
+    'Ajmer':            [26.4499, 74.6399],
+    'Mount Abu':        [24.5926, 72.7156],
+    'Bangalore':        [12.9716, 77.5946],
+    'Mysore':           [12.2958, 76.6394],
+    'Hampi':            [15.3350, 76.4600],
+    'Coorg':            [12.3375, 75.8069],
+    'Mangalore':        [12.9141, 74.8560],
+    'Udupi':            [13.3409, 74.7421],
+    'Chennai':          [13.0827, 80.2707],
+    'Madurai':          [9.9252,  78.1198],
+    'Ooty':             [11.4102, 76.6950],
+    'Kodaikanal':       [10.2381, 77.4892],
+    'Coimbatore':       [11.0168, 76.9558],
+    'Mahabalipuram':    [12.6269, 80.1927],
+    'Rameswaram':       [9.2881,  79.3174],
+    'Kanchipuram':      [12.8185, 79.6947],
+    'Hyderabad':        [17.3850, 78.4867],
+    'Warangal':         [17.9784, 79.5941],
+    'Visakhapatnam':    [17.6868, 83.2185],
+    'Tirupati':         [13.6288, 79.4192],
+    'Vijayawada':       [16.5062, 80.6480],
+    'Kochi':            [9.9312,  76.2673],
+    'Alleppey':         [9.4981,  76.3388],
+    'Munnar':           [10.0892, 77.0595],
+    'Kovalam':          [8.4004,  76.9786],
+    'Thiruvananthapuram':[8.5241, 76.9366],
+    'Varkala':          [8.7379,  76.7163],
+    'Wayanad':          [11.6854, 76.1320],
+    'Thekkady':         [9.5996,  77.1699],
+    'Pondicherry':      [11.9416, 79.8083],
+    'Goa':              [15.2993, 74.1240],
+    'Mumbai':           [19.0760, 72.8777],
+    'Pune':             [18.5204, 73.8567],
+    'Aurangabad':       [19.8762, 75.3433],
+    'Nashik':           [19.9975, 73.7898],
+    'Lonavala':         [18.7546, 73.4062],
+    'Mahabaleshwar':    [17.9235, 73.6586],
+    'Kolhapur':         [16.7050, 74.2433],
+    'Shirdi':           [19.7652, 74.4769],
+    'Ahmedabad':        [23.0225, 72.5714],
+    'Surat':            [21.1702, 72.8311],
+    'Vadodara':         [22.3072, 73.1812],
+    'Rajkot':           [22.3039, 70.8022],
+    'Dwarka':           [22.2394, 68.9678],
+    'Rann of Kutch':    [23.7337, 69.8597],
+    'Somnath':          [20.9016, 70.3854],
+    'Gir':              [21.1243, 70.8242],
+    'Kolkata':          [22.5726, 88.3639],
+    'Darjeeling':       [27.0360, 88.2627],
+    'Sundarbans':       [21.9497, 89.1833],
+    'Siliguri':         [26.7271, 88.3952],
+    'Patna':            [25.5941, 85.1376],
+    'Bodh Gaya':        [24.6961, 84.9910],
+    'Nalanda':          [25.1366, 85.4436],
+    'Rajgir':           [25.0275, 85.4187],
+    'Bhubaneswar':      [20.2961, 85.8245],
+    'Puri':             [19.8135, 85.8312],
+    'Konark':           [19.8876, 86.0947],
+    'Chilika Lake':     [19.7147, 85.3194],
+    'Ranchi':           [23.3441, 85.3096],
+    'Jamshedpur':       [22.8046, 86.2029],
+    'Guwahati':         [26.1445, 91.7362],
+    'Kaziranga':        [26.5775, 93.1711],
+    'Majuli':           [26.9500, 94.1667],
+    'Shillong':         [25.5788, 91.8933],
+    'Cherrapunji':      [25.2800, 91.7200],
+    'Gangtok':          [27.3389, 88.6065],
+    'Pelling':          [27.2928, 88.1092],
+    'Tawang':           [27.5862, 91.8594],
+    'Ziro':             [27.5333, 93.8333],
+    'Imphal':           [24.8170, 93.9368],
+    'Loktak Lake':      [24.5202, 93.7857],
+    'Aizawl':           [23.7271, 92.7176],
+    'Kohima':           [25.6701, 94.1077],
+    'Agartala':         [23.8315, 91.2868],
+    'Bhopal':           [23.2599, 77.4126],
+    'Indore':           [22.7196, 75.8577],
+    'Ujjain':           [23.1765, 75.7885],
+    'Khajuraho':        [24.8318, 79.9199],
+    'Orchha':           [25.3519, 78.6415],
+    'Gwalior':          [26.2183, 78.1828],
+    'Pachmarhi':        [22.4670, 78.4340],
+    'Kanha':            [22.3380, 80.6115],
+    'Bandhavgarh':      [23.7167, 81.0167],
+    'Raipur':           [21.2514, 81.6296],
+    'Jagdalpur':        [19.0748, 82.0190],
+    'Port Blair':       [11.6234, 92.7265],
+    'Havelock Island':  [12.0213, 92.9932],
+    'Neil Island':      [11.8302, 93.0574],
+    'Lakshadweep':      [10.5667, 72.6417],
+    'Kavaratti':        [10.5669, 72.6420],
+};
+
+// ─── Haversine distance (km) between two lat/lng points ─────────
+function haversineKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ─── Find nearest city from the 124-city list ───────────────────
+function findNearestCity(lat, lng) {
+    let nearest = null;
+    let minDist = Infinity;
+    Object.entries(CITY_COORDS).forEach(([city, [clat, clng]]) => {
+        const dist = haversineKm(lat, lng, clat, clng);
+        if (dist < minDist) { minDist = dist; nearest = city; }
+    });
+    return nearest;
+}
+
 // ─── CURRENT LOCATION ────────────────────────────────────────────
 function useCurrentLocation() {
     const btn = document.getElementById('useLocationBtn');
@@ -30,43 +180,25 @@ function useCurrentLocation() {
     btnText.textContent = 'Detecting...';
 
     navigator.geolocation.getCurrentPosition(
-        async (position) => {
+        (position) => {
             const { latitude, longitude } = position.coords;
-            let locationLabel = '';
-            try {
-                const res = await fetch(
-                    `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10&addressdetails=1`
-                );
-                const data = await res.json();
-                const addr = data.address || {};
-                const city = addr.city
-                    || addr.town
-                    || addr.municipality
-                    || addr.village
-                    || addr.county
-                    || '';
-                const state = addr.state || addr.state_district || '';
-                locationLabel = city && state ? `${city}, ${state}` : city || state || '';
+            const nearestCity = findNearestCity(latitude, longitude);
 
-                if (locationLabel) {
-                    fromInput.value = locationLabel;
-                    wizState.from = locationLabel;
-                    // Visually pulse the FROM box so user sees it filled
-                    fromInput.style.transition = 'box-shadow 0.3s, border-color 0.3s';
-                    fromInput.style.borderColor = '#ABD1C6';
-                    fromInput.style.boxShadow = '0 0 0 3px rgba(171,209,198,0.35)';
-                    setTimeout(() => { fromInput.style.borderColor = ''; fromInput.style.boxShadow = ''; }, 2500);
-                    showToast(`📍 Location detected: ${locationLabel}`, 'success');
-                } else {
-                    fromInput.value = '';
-                    showToast('📍 Could not detect city. Please type it manually.', 'error');
-                }
-            } catch (e) {
-                fromInput.value = '';
-                showToast('📍 Location error. Please type your city.', 'error');
+            if (nearestCity) {
+                fromInput.value = nearestCity;
+                wizState.from = nearestCity;
+                // Pulse the FROM box
+                fromInput.style.transition = 'box-shadow 0.3s, border-color 0.3s';
+                fromInput.style.borderColor = '#ABD1C6';
+                fromInput.style.boxShadow = '0 0 0 3px rgba(171,209,198,0.35)';
+                setTimeout(() => { fromInput.style.borderColor = ''; fromInput.style.boxShadow = ''; }, 2500);
+                showToast(`📍 Nearest city: ${nearestCity}`, 'success');
+            } else {
+                showToast('📍 Could not detect city. Please type it manually.', 'error');
             }
+
             btn.classList.remove('loading');
-            btnText.textContent = locationLabel ? `✓ ${locationLabel}` : '✓ Location Detected';
+            btnText.textContent = nearestCity ? `✓ ${nearestCity}` : '📍 Detect My City (sets From)';
             setTimeout(() => { btnText.textContent = '📍 Detect My City (sets From)'; }, 4000);
         },
         (err) => {
@@ -808,16 +940,15 @@ async function wizGeneratePlan() {
                 + `{"order":5,"name":"<Evening spot unique to day ${i+1}>","category":"<Temple/Park/Ghat/Market>","emoji":"🌙","description":"<2 sentences>","time":"6:30 PM","duration":"1 hr","entry_fee":"<₹X or Free>","tip":"<tip>","travel_to_next":null}]}`;
         }).join(',');
 
-        const prompt = `You are an expert India travel planner with deep knowledge of Google Maps verified attractions. Create a COMPLETE ${dur}-day itinerary for ${dest}${from ? ` from ${from}` : ''}.
+        const prompt = `You are an expert India travel planner. Create a COMPLETE ${dur}-day itinerary for ${dest}${from ? ` from ${from}` : ''}.
 People: ${people}. STRICT BUDGET: Rs.${budgetPerPerson.toLocaleString('en-IN')} TOTAL per person for the whole trip (Rs.${perDayBudget}/person/day). Style: ${style}. Food: ${foodPref}${dietExtra}.
 The budget_per_person totals MUST add up to approximately ${budgetPerPerson} — do NOT exceed this.
 
 STRICT RULES:
 1. Reply ONLY in valid JSON. No markdown, no code fences, no text outside JSON.
-2. Every day MUST have EXACTLY 5 spots. CRITICAL: ALL ${dur * 5} spot names across ALL days must be 100% UNIQUE — absolutely NO place name may appear more than once in the entire itinerary. Each day visits completely different places.
-3. ALL places, hotels, trains, buses MUST be REAL, Google Maps verified, and actually exist in ${dest}. Use official names exactly as on Google Maps. Hotels must be real bookable properties.
+2. Every day MUST have EXACTLY 5 spots. All ${dur * 5} spots must be UNIQUE place names — no repeats across any day.
+3. All places, hotels, trains, buses must be REAL and actually exist in ${dest}.
 4. budget_per_person values must be plain integers in INR (no Rs symbol, no commas).
-5. UNIQUENESS CHECK: Before returning, verify that no spot name from day 1 appears in days 2-${dur}, no spot from day 2 appears in days 3-${dur}, etc. If any duplicate exists, replace it with a different real place in ${dest}.
 
 {"city":"${dest}","tagline":"<punchy 1-line about ${dest}>","overview":"<2 vivid sentences about this ${dur}-day trip>",
 "transport":{"summary":"<how to reach ${dest}${from ? ' from ' + from : ''}>","options":[
@@ -865,36 +996,6 @@ FINAL CHECK: The days array must have EXACTLY ${dur} objects. Each with EXACTLY 
             const existing = planData.days || [];
             const extra = fallbackForFill.days.slice(existing.length, dur);
             planData.days = [...existing, ...extra];
-        }
-
-        // ── DEDUPLICATION: ensure every spot name is unique across all days ──
-        if (planData.days) {
-            const seenSpotNames = new Set();
-            const fallbackSpotPool = fallbackForFill.days.flatMap(d => d.spots);
-            let fallbackIdx = 0;
-            planData.days.forEach(day => {
-                if (!day.spots) return;
-                day.spots = day.spots.map(spot => {
-                    const nameKey = (spot.name || '').toLowerCase().trim();
-                    if (!nameKey || seenSpotNames.has(nameKey)) {
-                        // Replace duplicate with a fallback spot not yet used
-                        while (fallbackIdx < fallbackSpotPool.length) {
-                            const fb = fallbackSpotPool[fallbackIdx++];
-                            const fbKey = (fb.name || '').toLowerCase().trim();
-                            if (!seenSpotNames.has(fbKey)) {
-                                seenSpotNames.add(fbKey);
-                                return { ...spot, name: fb.name, emoji: fb.emoji, description: fb.description, tip: fb.tip };
-                            }
-                        }
-                        // If fallback pool exhausted, generate a unique placeholder
-                        const uniqueName = `${dest} Attraction ${seenSpotNames.size + 1}`;
-                        seenSpotNames.add(uniqueName.toLowerCase());
-                        return { ...spot, name: uniqueName };
-                    }
-                    seenSpotNames.add(nameKey);
-                    return spot;
-                });
-            });
         }
 
         // ── Enforce correct budget: override AI budget to match actual user budget ──
@@ -1372,7 +1473,8 @@ function wizRenderResults(plan, destination, duration) {
       <button class="wiz-btn-back" onclick="wizReset()">← Plan Another Trip</button>
       <span class="wiz-step-count">✦ AI Plan Ready</span>
       <div style="display:flex;gap:8px;">
-        <button class="wiz-btn-next wiz-btn-pdf" onclick="wizDownloadPDF()">⬇ Download PDF</button>
+        <button class="wiz-btn-next wiz-btn-pdf" onclick="wizDownloadWord()" style="background:linear-gradient(135deg,#2b579a,#1e3f7a);gap:6px;">📄 Word (.docx)</button>
+        <button class="wiz-btn-next wiz-btn-pdf" onclick="wizDownloadPDF()">⬇ PDF</button>
       </div>`;
 
     document.getElementById('wizResultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
