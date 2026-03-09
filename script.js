@@ -711,6 +711,7 @@ async function wizGeneratePlan() {
     const foodPref = wizState.food === 'veg' ? 'Vegetarian only' : 'Both veg and non-veg';
     const dietExtra = wizState.diet && wizState.diet.length ? `, special needs: ${wizState.diet.join(', ')}` : '';
     const budgetPerPerson = wizState.customBudget || { budget: 10000, normal: 27000, luxury: 60000 }[wizState.budget] || 27000;
+    const perDayBudget = Math.round(budgetPerPerson / (wizState.duration || 5));
     const budgetLabel = wizState.customBudget
         ? `Custom ₹${wizState.customBudget.toLocaleString('en-IN')} per person`
         : { budget: 'Budget (₹5k–₹15k)', normal: 'Mid-Range (₹15k–₹40k)', luxury: 'Luxury (₹40k+)' }[wizState.budget];
@@ -803,7 +804,8 @@ async function wizGeneratePlan() {
         }).join(',');
 
         const prompt = `You are an expert India travel planner. Create a COMPLETE ${dur}-day itinerary for ${dest}${from ? ` from ${from}` : ''}.
-People: ${people}. Budget: ${budgetLabel} (Rs.${budgetPerPerson.toLocaleString('en-IN')}/person). Style: ${style}. Food: ${foodPref}${dietExtra}.
+People: ${people}. STRICT BUDGET: Rs.${budgetPerPerson.toLocaleString('en-IN')} TOTAL per person for the whole trip (Rs.${perDayBudget}/person/day). Style: ${style}. Food: ${foodPref}${dietExtra}.
+The budget_per_person totals MUST add up to approximately ${budgetPerPerson} — do NOT exceed this.
 
 STRICT RULES:
 1. Reply ONLY in valid JSON. No markdown, no code fences, no text outside JSON.
@@ -841,10 +843,37 @@ FINAL CHECK: The days array must have EXACTLY ${dur} objects. Each with EXACTLY 
         document.getElementById('wizFooter').style.display = '';
         let planData;
         try {
-            planData = JSON.parse(response.replace(/```json|```/g, '').trim());
+            // Extract JSON even if AI wraps it in extra text
+            let raw = response.replace(/```json|```/g, '').trim();
+            const jsonStart = raw.indexOf('{');
+            const jsonEnd = raw.lastIndexOf('}');
+            if (jsonStart !== -1 && jsonEnd !== -1) raw = raw.slice(jsonStart, jsonEnd + 1);
+            planData = JSON.parse(raw);
         } catch (e) {
             planData = wizBuildFallback(dest, dur, cityData);
         }
+
+        // ── Enforce correct day count: if AI returned fewer days, fill with fallback days ──
+        const fallbackForFill = wizBuildFallback(dest, dur, cityData);
+        if (!planData.days || planData.days.length < dur) {
+            const existing = planData.days || [];
+            const extra = fallbackForFill.days.slice(existing.length, dur);
+            planData.days = [...existing, ...extra];
+        }
+
+        // ── Enforce correct budget: override AI budget to match actual user budget ──
+        const actualBudget = wizState.customBudget || { budget: 10000, normal: 27000, luxury: 60000 }[wizState.budget] || 27000;
+        const budgetSum = Object.values(planData.budget_per_person || {}).reduce((a,b) => a + (Number(b)||0), 0);
+        if (budgetSum === 0 || Math.abs(budgetSum - actualBudget) > actualBudget * 0.2) {
+            // AI ignored budget — force it to match
+            planData.budget_per_person = {
+                accommodation: Math.round(actualBudget * 0.40),
+                food:          Math.round(actualBudget * 0.25),
+                transport:     Math.round(actualBudget * 0.20),
+                activities:    Math.round(actualBudget * 0.15)
+            };
+        }
+
         wizRenderResults(planData, dest, dur);
     } catch (err) {
         finishLoading();
@@ -857,16 +886,76 @@ FINAL CHECK: The days array must have EXACTLY ${dur} objects. Each with EXACTLY 
 
 function wizBuildFallback(destination, days, cityData) {
     const d = cityData || {};
-    const perDay = d.per_day?.[wizState.budget] || 3000;
-    const totalDays = Math.min(days, 7);
-    const famous = d.famous || [`${destination} Heritage Site`, `${destination} City Centre`, `${destination} Museum`, 'Local Market', 'Sunset Point'];
-    const spotsPool = [
-        { name: famous[0], category: 'Attraction', emoji: '🏛️', description: `One of the most iconic sites in ${destination}. A must-visit on any trip.`, time: '9:00 AM', duration: '2 hrs', entry_fee: '₹50', tip: 'Visit early morning to avoid crowds.' },
-        { name: famous[1] || `${destination} Old City`, category: 'Attraction', emoji: '🗺️', description: `Explore the historic heart of ${destination}.`, time: '11:30 AM', duration: '1.5 hrs', entry_fee: 'Free', tip: 'Wear comfortable shoes for walking.' },
-        { name: (d.food && d.food[0]?.name ? `${d.food[0].name} at local dhaba` : `Famous ${destination} Thali`), category: 'Restaurant', emoji: '🍽️', description: `Try authentic local cuisine. A beloved spot among locals and tourists alike.`, time: '1:00 PM', duration: '1 hr', entry_fee: '₹150–300', tip: 'Order the house special.' },
-        { name: famous[2] || `${destination} Museum`, category: 'Museum', emoji: '🏺', description: `Discover the rich cultural heritage and history of the region.`, time: '3:00 PM', duration: '1.5 hrs', entry_fee: '₹30', tip: 'Audio guides available at the entrance.' },
-        { name: famous[3] || 'Local Bazaar', category: 'Market', emoji: '🛍️', description: `Browse colourful stalls selling local handicrafts and souvenirs.`, time: '5:00 PM', duration: '1.5 hrs', entry_fee: 'Free', tip: 'Bargain politely — start at 50% of asking price.' }
+    // Use custom budget if set, otherwise use tier default
+    const customBudget = wizState.customBudget || 0;
+    const tierPerDay = d.per_day?.[wizState.budget] || 3000;
+    const perDay = customBudget ? Math.round(customBudget / days) : tierPerDay;
+    const totalDays = days; // NO cap — use actual requested days
+    const famous = d.famous || [`${destination} City Palace`, `${destination} Old Town`, `${destination} Fort`, `${destination} Lake`, `${destination} Museum`, `${destination} Market`, `${destination} Temple`, `${destination} Garden`, `${destination} Beach`, `${destination} Hill Point`];
+    const hidden = d.hidden || [`${destination} Heritage Walk`, `${destination} Sunrise Point`, `${destination} Local Village`, `${destination} Spice Market`, `${destination} Waterfall`, `${destination} Cave`, `${destination} River Bank`, `${destination} Folk Art Centre`];
+    const foodItems = d.food || [{name:`${destination} Special Thali`},{name:`Street Food Lane`},{name:`Local Sweet Shop`},{name:`Chai & Snacks`},{name:`Regional Cuisine Restaurant`}];
+    // Build a large unique pool — 8 spots per possible day slot
+    const dayThemes = ['Arrival & City Icons','Heritage & History','Nature & Wildlife','Culture & Temples','Food & Markets','Hidden Gems','Adventure & Outdoors','Leisure & Shopping','Spiritual Walk','Final Day & Souvenirs'];
+    const allSpotNames = [
+        ...famous,
+        ...hidden,
+        `${destination} Sunrise Point`, `${destination} Sunset View`, `${destination} Photography Walk`,
+        `${destination} Local Craft Centre`, `${destination} Boat Ride`, `${destination} Heritage Museum`,
+        `${destination} Night Market`, `${destination} Botanical Garden`, `${destination} Lookout Tower`,
+        `${destination} Riverside Walk`, `${destination} Colonial Quarter`, `${destination} Art Gallery`
     ];
+    // Remove duplicates
+    const uniqueNames = [...new Set(allSpotNames)];
+    // Pad if needed
+    while (uniqueNames.length < totalDays * 5) {
+        uniqueNames.push(`${destination} Attraction ${uniqueNames.length + 1}`);
+    }
+    const categories = ['Attraction','Museum','Temple','Nature','Market','Restaurant','Park'];
+    const emojis = ['🏛️','🗺️','🌿','🏺','🛍️','🍽️','⛰️','🌊','🏯','🌸'];
+    const times = [['9:00 AM','11:30 AM','1:30 PM','3:30 PM','6:30 PM']];
+    const durations = ['2 hrs','1.5 hrs','1 hr','1.5 hrs','1 hr'];
+    const tips = [
+        'Visit early morning to avoid crowds.','Hire a local guide for best experience.',
+        'Try the house special.','Best in the evening for photos.','Carry water and snacks.'
+    ];
+    let spotIdx = 0;
+    // Build unique spots for each day using the pool — never repeat a spot
+    const dayColors = ['#3a8c7e','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#10b981','#f97316','#06b6d4','#84cc16','#fb923c'];
+    const spotTimes = ['9:00 AM','11:30 AM','1:30 PM','3:30 PM','6:30 PM'];
+    const spotDurations = ['2 hrs','1.5 hrs','1 hr','1.5 hrs','1 hr'];
+    const spotTips = [
+        'Visit early morning to avoid crowds.',
+        'Hire a local guide for the best experience.',
+        'Try the house special.',
+        'Best visited in the evening for photos.',
+        'Carry water and wear comfortable footwear.'
+    ];
+    const spotCategories = ['Attraction','Museum','Temple','Nature','Market','Restaurant','Park','Heritage'];
+    const spotEmojis = ['🏛️','🗺️','🌿','🏺','🛍️','🍽️','⛰️','🌊','🏯','🌸','🎨','🚣'];
+
+    const builtDays = Array.from({ length: totalDays }, (_, i) => {
+        const daySpots = uniqueNames.slice(i * 5, i * 5 + 5).map((name, si) => ({
+            order: si + 1,
+            name,
+            category: si === 2 ? 'Restaurant' : spotCategories[(i + si) % spotCategories.length],
+            emoji: spotEmojis[(i * 5 + si) % spotEmojis.length],
+            description: si === 2
+                ? `Try authentic local ${destination} cuisine here. A beloved spot among locals and tourists alike.`
+                : `Explore this remarkable site in ${destination}. A highlight of any visit to the region.`,
+            time: spotTimes[si],
+            duration: spotDurations[si],
+            entry_fee: si === 2 ? '₹150–300' : si === 0 ? '₹50' : 'Free',
+            tip: spotTips[si],
+            travel_to_next: si < 4 ? { mins: 10 + (si * 5), mode: si % 2 === 0 ? 'auto' : 'walk', distance: `${(0.5 + si * 0.5).toFixed(1)}km` } : null
+        }));
+        return {
+            day: i + 1,
+            title: dayThemes[i % dayThemes.length],
+            theme_color: dayColors[i % dayColors.length],
+            spots: daySpots
+        };
+    });
+
     return {
         city: destination,
         tagline: `Discover the wonders of ${destination}`,
@@ -874,24 +963,9 @@ function wizBuildFallback(destination, days, cityData) {
         transport: {
             summary: `Multiple options available to reach ${destination} from ${wizState.from || 'your city'}.`,
             options: [
-                {
-                    mode: 'Train', icon: '🚂', color: '#3b82f6',
-                    routes: [
-                        { name: 'Express Train (check IRCTC)', number: '—', from: wizState.from || 'Your City', to: `${destination} Railway Station`, duration: 'Varies', fare: '₹300–₹2000 (SL/3A/2A)', frequency: 'Multiple daily', departs: 'Various', tip: 'Book 60 days ahead on IRCTC for best availability.' }
-                    ]
-                },
-                {
-                    mode: 'Bus', icon: '🚌', color: '#10b981',
-                    routes: [
-                        { name: 'State Transport / KSRTC / MSRTC', from: `${wizState.from || 'Your City'} Bus Stand`, to: `${destination} Bus Stand`, duration: 'Varies', fare: '₹200–₹800', frequency: 'Multiple daily', departs: 'Morning & Night', tip: 'Book on RedBus or at the bus stand counter.' }
-                    ]
-                },
-                {
-                    mode: 'Flight', icon: '✈️', color: '#8b5cf6',
-                    routes: [
-                        { name: 'IndiGo / Air India / SpiceJet', from: `${wizState.from || 'Nearest'} Airport`, to: `${destination} Airport`, duration: '1–3 hrs', fare: '₹2500–₹9000', frequency: 'Daily', departs: 'Multiple', tip: 'Book 4–6 weeks in advance for lowest fares.' }
-                    ]
-                }
+                { mode: 'Train', icon: '🚂', color: '#3b82f6', routes: [{ name: 'Express Train (check IRCTC)', number: '—', from: wizState.from || 'Your City', to: `${destination} Railway Station`, duration: 'Varies', fare: '₹300–₹2000 (SL/3A/2A)', frequency: 'Multiple daily', departs: 'Various', tip: 'Book 60 days ahead on IRCTC for best availability.' }] },
+                { mode: 'Bus', icon: '🚌', color: '#10b981', routes: [{ name: 'State Transport / KSRTC / MSRTC', from: `${wizState.from || 'Your City'} Bus Stand`, to: `${destination} Bus Stand`, duration: 'Varies', fare: '₹200–₹800', frequency: 'Multiple daily', departs: 'Morning & Night', tip: 'Book on RedBus or at the bus stand counter.' }] },
+                { mode: 'Flight', icon: '✈️', color: '#8b5cf6', routes: [{ name: 'IndiGo / Air India / SpiceJet', from: `${wizState.from || 'Nearest'} Airport`, to: `${destination} Airport`, duration: '1–3 hrs', fare: '₹2500–₹9000', frequency: 'Daily', departs: 'Multiple', tip: 'Book 4–6 weeks in advance for lowest fares.' }] }
             ],
             local_transport: {
                 options: [
@@ -902,28 +976,19 @@ function wizBuildFallback(destination, days, cityData) {
             }
         },
         hotels: [
-            { name: `Heritage Resort ${destination}`, type: 'Luxury', area: 'City Centre', address: `Near Main Chowk, ${destination}`, price_per_night: '₹4500', price_range: '₹4000–₹6000', rating: '4.4', stars: 4, amenities: ['Pool', 'Spa', 'Restaurant', 'Free WiFi', 'AC'], distance_from_center: '0.5 km from city centre', why: 'Best views, heritage property, central location.', book_via: 'MakeMyTrip / Booking.com' },
-            { name: `Comfort Inn ${destination}`, type: 'Mid-range', area: 'Near Bus Stand', address: `Bus Stand Road, ${destination}`, price_per_night: '₹1800', price_range: '₹1500–₹2200', rating: '4.0', stars: 3, amenities: ['AC', 'Free WiFi', 'Restaurant', 'Parking'], distance_from_center: '1.2 km from city centre', why: 'Clean rooms, great value, easy access.', book_via: 'MakeMyTrip / Booking.com' },
-            { name: `Budget Stay ${destination}`, type: 'Budget', area: 'Old City', address: `Old Market Area, ${destination}`, price_per_night: '₹700', price_range: '₹500–₹900', rating: '3.8', stars: 2, amenities: ['WiFi', 'AC', 'Hot Water'], distance_from_center: '1.8 km from city centre', why: 'Affordable, well-located near main attractions.', book_via: 'OYO / Booking.com' }
+            { name: `Heritage Resort ${destination}`, type: 'Luxury', area: 'City Centre', address: `Near Main Chowk, ${destination}`, price_per_night: '₹4500', price_range: '₹4000–₹6000', rating: '4.4', stars: 4, amenities: ['Pool','Spa','Restaurant','Free WiFi','AC'], distance_from_center: '0.5km', why: 'Best views, heritage property, central location.', book_via: 'MakeMyTrip' },
+            { name: `Comfort Inn ${destination}`, type: 'Mid-range', area: 'Near Bus Stand', address: `Bus Stand Road, ${destination}`, price_per_night: '₹1800', price_range: '₹1500–₹2200', rating: '4.0', stars: 3, amenities: ['AC','Free WiFi','Restaurant','Parking'], distance_from_center: '1.2km', why: 'Clean rooms, great value, easy access.', book_via: 'Booking.com' },
+            { name: `Budget Stay ${destination}`, type: 'Budget', area: 'Old City', address: `Old Market Area, ${destination}`, price_per_night: '₹700', price_range: '₹500–₹900', rating: '3.8', stars: 2, amenities: ['WiFi','AC','Hot Water'], distance_from_center: '1.8km', why: 'Affordable, well-located near main attractions.', book_via: 'OYO' }
         ],
-        days: Array.from({ length: totalDays }, (_, i) => ({
-            day: i + 1,
-            title: i === 0 ? 'Arrival & First Impressions' : i === totalDays - 1 ? 'Final Gems & Departure' : `Explore ${destination} — Day ${i + 1}`,
-            theme_color: ['#3a8c7e', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#10b981', '#f97316'][i % 7],
-            spots: spotsPool.map((s, si) => ({
-                ...s,
-                order: si + 1,
-                travel_to_next: si < spotsPool.length - 1 ? { mins: 10 + Math.floor(Math.random() * 15), mode: si % 2 === 0 ? 'walk' : 'auto', distance: `${(0.5 + Math.random() * 1.5).toFixed(1)}km` } : null
-            }))
-        })),
+        days: builtDays,
         budget_per_person: {
-            accommodation: Math.round(perDay * 0.4) * totalDays,
-            food: Math.round(perDay * 0.25) * totalDays,
-            transport: Math.round(perDay * 0.2) * totalDays,
-            activities: Math.round(perDay * 0.15) * totalDays
+            accommodation: Math.round(perDay * totalDays * 0.40),
+            food:          Math.round(perDay * totalDays * 0.25),
+            transport:     Math.round(perDay * totalDays * 0.20),
+            activities:    Math.round(perDay * totalDays * 0.15)
         },
         best_time: 'October to March for most parts of India.',
-        local_tips: [`Carry cash — many local shops don't accept cards in ${destination}.`, 'Dress modestly when visiting temples and religious sites.', 'Download offline maps before you travel.'],
+        local_tips: [`Carry cash — many local shops don't accept cards in ${destination}.`, 'Dress modestly when visiting temples and religious sites.', 'Download offline maps before you travel.', `Best explored during weekdays to avoid weekend crowds.`],
         emergency: { police: '100', tourist_helpline: '1800-111-363', hospital: `District Hospital, ${destination}` }
     };
 }
@@ -1270,7 +1335,10 @@ function wizRenderResults(plan, destination, duration) {
     document.getElementById('wizFooter').innerHTML = `
       <button class="wiz-btn-back" onclick="wizReset()">← Plan Another Trip</button>
       <span class="wiz-step-count">✦ AI Plan Ready</span>
-      <button class="wiz-btn-next wiz-btn-pdf" onclick="wizDownloadPDF()">⬇ Download PDF</button>`;
+      <div style="display:flex;gap:8px;">
+        <button class="wiz-btn-next wiz-btn-pdf" onclick="wizDownloadWord()" style="background:linear-gradient(135deg,#2b579a,#1e3f7a);gap:6px;">📄 Word (.docx)</button>
+        <button class="wiz-btn-next wiz-btn-pdf" onclick="wizDownloadPDF()">⬇ PDF</button>
+      </div>`;
 
     document.getElementById('wizResultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     window._lastPlanData = { plan, destination, duration, wizState: { ...wizState }, total, totalAll, budgetLabel, foodLabel };
@@ -1295,6 +1363,181 @@ function rpSwitchDay(idx) {
 function rpSwitchTransport(idx) {
     document.querySelectorAll('.rp-trans-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
     document.querySelectorAll('.rp-trans-panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+}
+
+
+function wizDownloadWord() {
+    const { plan, destination, duration, total, totalAll, budgetLabel, foodLabel } = window._lastPlanData || {};
+    if (!plan) { showToast('No plan data found. Please generate a plan first.', 'error'); return; }
+
+    const city = plan.city || destination;
+    const people = wizState.adults + wizState.children;
+    const date = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    const days = plan.days || [];
+    const budget = plan.budget_per_person || {};
+    const bTotal = Object.values(budget).reduce((a,b)=>a+(Number(b)||0),0);
+
+    // Build Word-compatible HTML (Word opens .doc HTML files natively)
+    let html = `
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8">
+<style>
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #1a1a1a; margin: 0; padding: 0; }
+  h1 { font-size: 28pt; color: #1a3630; font-family: Georgia, serif; margin-bottom: 4px; }
+  h2 { font-size: 14pt; color: #1a3630; border-bottom: 2px solid #3a8c7e; padding-bottom: 4px; margin-top: 20px; }
+  h3 { font-size: 12pt; color: #0a4f3a; margin-bottom: 4px; }
+  .cover { background: #0a1412; color: #e8f5f2; padding: 40px 50px; page-break-after: always; }
+  .cover h1 { color: #ABD1C6; font-size: 36pt; }
+  .cover p { color: #ABD1C680; }
+  .stat-row { display: flex; gap: 20px; margin: 20px 0; }
+  .stat { background: #1a3630; color: #e8f5f2; padding: 12px 20px; border-radius: 8px; text-align: center; min-width: 100px; }
+  .stat-val { font-size: 18pt; font-weight: bold; color: #ABD1C6; }
+  .stat-lbl { font-size: 8pt; color: #ABD1C680; text-transform: uppercase; }
+  .content { padding: 30px 50px; }
+  .day-card { border: 1px solid #ddd; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; border-left: 4px solid #3a8c7e; }
+  .day-title { font-size: 12pt; font-weight: bold; color: #1a3630; margin-bottom: 10px; }
+  .spot { margin: 8px 0; padding: 8px 12px; background: #f5f9f8; border-radius: 6px; }
+  .spot-name { font-weight: bold; color: #0a4f3a; }
+  .spot-meta { font-size: 9pt; color: #666; margin-top: 2px; }
+  .tip { color: #3a8c7e; font-size: 9pt; font-style: italic; }
+  .budget-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
+  .hotel-card { border: 1px solid #ddd; padding: 10px 14px; margin: 8px 0; border-radius: 6px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 8pt; font-weight: bold; }
+  .badge-lux { background: #fef3c7; color: #92400e; }
+  .badge-mid { background: #dbeafe; color: #1e40af; }
+  .badge-bud { background: #d1fae5; color: #065f46; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  td, th { border: 1px solid #ddd; padding: 6px 10px; text-align: left; font-size: 10pt; }
+  th { background: #1a3630; color: #ABD1C6; font-weight: bold; }
+  .footer { text-align: center; color: #999; font-size: 8pt; margin-top: 40px; padding-top: 10px; border-top: 1px solid #eee; }
+  @page { margin: 1in; }
+</style>
+</head><body>
+
+<!-- COVER PAGE -->
+<div class="cover">
+  <p style="font-size:8pt;letter-spacing:3px;text-transform:uppercase;color:#ABD1C680;">✦ YOUR PERSONALISED TRAVEL PLAN</p>
+  <h1>${city}</h1>
+  <p style="font-style:italic;font-size:12pt;color:#ABD1C6;">${plan.tagline || ''}</p>
+  <br>
+  <table style="border:none;width:auto;">
+    <tr>
+      <td style="border:1px solid #2a4a40;background:#1a3630;color:#ABD1C6;padding:12px 20px;text-align:center;border-radius:6px;">
+        <div style="font-size:20pt;font-weight:bold;">${duration}</div>
+        <div style="font-size:8pt;letter-spacing:2px;">DAYS</div>
+      </td>
+      <td style="border:1px solid #2a4a40;background:#1a3630;color:#ABD1C6;padding:12px 20px;text-align:center;">
+        <div style="font-size:20pt;font-weight:bold;">${people}</div>
+        <div style="font-size:8pt;letter-spacing:2px;">TRAVELLERS</div>
+      </td>
+      <td style="border:1px solid #2a4a40;background:#1a3630;color:#ABD1C6;padding:12px 20px;text-align:center;">
+        <div style="font-size:20pt;font-weight:bold;">₹${bTotal >= 1000 ? (bTotal/1000).toFixed(1)+'k' : bTotal}</div>
+        <div style="font-size:8pt;letter-spacing:2px;">EST. / PERSON</div>
+      </td>
+      <td style="border:1px solid #2a4a40;background:#1a3630;color:#ABD1C6;padding:12px 20px;text-align:center;">
+        <div style="font-size:20pt;font-weight:bold;">₹${(bTotal*people) >= 1000 ? ((bTotal*people)/1000).toFixed(1)+'k' : (bTotal*people)}</div>
+        <div style="font-size:8pt;letter-spacing:2px;">TOTAL EST.</div>
+      </td>
+    </tr>
+  </table>
+  <br>
+  <table style="border:none;width:auto;">
+    <tr>
+      <td style="border:none;color:#ABD1C6;font-size:9pt;padding:4px 16px 4px 0;"><b>Budget</b><br>${budgetLabel}</td>
+      <td style="border:none;color:#ABD1C6;font-size:9pt;padding:4px 16px;"><b>Food</b><br>${foodLabel}</td>
+      <td style="border:none;color:#ABD1C6;font-size:9pt;padding:4px 16px;"><b>Best Time</b><br>${plan.best_time || 'Oct–Mar'}</td>
+      <td style="border:none;color:#ABD1C6;font-size:9pt;padding:4px 16px;"><b>Generated</b><br>${date}</td>
+    </tr>
+  </table>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+  ${plan.overview ? `<div style="border-left:4px solid #3a8c7e;padding:12px 18px;background:#f0f7f5;margin-bottom:24px;font-style:italic;color:#1a3630;">"${plan.overview}"</div>` : ''}
+
+  <h2>📅 Day-by-Day Itinerary</h2>
+  ${days.map(d => `
+  <div class="day-card" style="border-left-color:${d.theme_color||'#3a8c7e'};">
+    <div class="day-title">Day ${d.day} — ${d.title || ''}</div>
+    ${(d.spots||[]).map(s => `
+    <div class="spot">
+      <div class="spot-name">${s.emoji||'📍'} ${s.name}</div>
+      <div class="spot-meta">🕐 ${s.time||''} &nbsp;|&nbsp; ⏱ ${s.duration||''} &nbsp;|&nbsp; ${s.entry_fee ? '₹ '+s.entry_fee : 'Free'}</div>
+      ${s.description ? `<div style="font-size:10pt;color:#444;margin-top:3px;">${s.description}</div>` : ''}
+      ${s.tip ? `<div class="tip">💡 ${s.tip}</div>` : ''}
+    </div>`).join('')}
+  </div>`).join('')}
+
+  ${plan.hotels && plan.hotels.length ? `
+  <h2>🏨 Where to Stay</h2>
+  ${plan.hotels.map(h => {
+    const badgeClass = h.type === 'Luxury' ? 'badge-lux' : h.type === 'Budget' ? 'badge-bud' : 'badge-mid';
+    return `<div class="hotel-card">
+      <span class="badge ${badgeClass}">${h.type}</span>
+      <span style="margin-left:6px;font-weight:bold;font-size:12pt;">${h.name}</span> ${'★'.repeat(parseInt(h.stars)||3)}
+      <br><span style="color:#666;font-size:9pt;">📍 ${h.area||''} ${h.address ? '· '+h.address : ''}</span>
+      ${h.amenities ? `<br><span style="font-size:9pt;color:#3a8c7e;">${h.amenities.join(' · ')}</span>` : ''}
+      ${h.why ? `<br><span style="font-size:9pt;color:#888;font-style:italic;">✦ ${h.why}</span>` : ''}
+      <br><b style="color:#1a3630;">${h.price_per_night||''}/night</b>
+      ${h.book_via ? `&nbsp; <a href="${getBookingUrl(h.book_via)}" style="color:#3a8c7e;">🔗 Book on ${h.book_via}</a>` : ''}
+    </div>`;
+  }).join('')}` : ''}
+
+  <h2>💰 Budget Breakdown (Per Person)</h2>
+  <table>
+    <tr><th>Category</th><th>Amount</th><th>Share</th></tr>
+    ${[['🏨 Accommodation','accommodation'],['🍽️ Food & Dining','food'],['🚆 Transport','transport'],['🎭 Activities','activities']].map(([label,key]) => {
+      const val = budget[key] || 0;
+      const pct = bTotal ? Math.round(val/bTotal*100) : 0;
+      return `<tr><td>${label}</td><td>₹${val.toLocaleString('en-IN')}</td><td>${pct}%</td></tr>`;
+    }).join('')}
+    <tr style="background:#f0f7f5;font-weight:bold;"><td>Total per person</td><td>₹${bTotal.toLocaleString('en-IN')}</td><td>100%</td></tr>
+    <tr style="background:#e0f0eb;font-weight:bold;color:#0a4f3a;"><td>Total for ${people} traveller${people>1?'s':''}</td><td>₹${(bTotal*people).toLocaleString('en-IN')}</td><td></td></tr>
+  </table>
+
+  ${plan.transport ? `
+  <h2>🗺️ How to Get There</h2>
+  <p style="color:#3a8c7e;font-style:italic;">${plan.transport.summary||''}</p>
+  ${(plan.transport.options||[]).map(opt => `
+  <h3>${opt.icon} ${opt.mode}</h3>
+  ${(opt.routes||[]).map(r => `
+  <table>
+    <tr><th colspan="2">${r.name} ${r.number && r.number!=='—' ? '(#'+r.number+')' : ''} — ${r.fare||''}</th></tr>
+    <tr><td>From</td><td>${r.from||''}</td></tr>
+    <tr><td>To</td><td>${r.to||''}</td></tr>
+    <tr><td>Duration</td><td>${r.duration||''}</td></tr>
+    <tr><td>Departs</td><td>${r.departs||''} | ${r.frequency||''}</td></tr>
+    ${r.tip ? `<tr><td colspan="2" style="color:#3a8c7e;font-style:italic;">💡 ${r.tip}</td></tr>` : ''}
+  </table>
+  <p><a href="${getTransportUrl(opt.mode)}" style="color:#3b82f6;">${opt.mode==='Train'?'🚂 Book on IRCTC':opt.mode==='Bus'?'🚌 Book on RedBus':'✈️ Search Flights'}</a></p>
+  `).join('')}`).join('')}` : ''}
+
+  ${plan.local_tips && plan.local_tips.length ? `
+  <h2>💡 Local Insider Tips</h2>
+  <ul>${plan.local_tips.map(t=>`<li style="margin:6px 0;color:#1a3630;">${t}</li>`).join('')}</ul>` : ''}
+
+  ${plan.emergency ? `
+  <h2>🆘 Emergency Numbers</h2>
+  <table>
+    <tr><td><b>Police</b></td><td>${plan.emergency.police||'100'}</td></tr>
+    <tr><td><b>Tourist Helpline</b></td><td>${plan.emergency.tourist_helpline||'1800-111-363'}</td></tr>
+    ${plan.emergency.hospital ? `<tr><td><b>Hospital</b></td><td>${plan.emergency.hospital}</td></tr>` : ''}
+  </table>` : ''}
+
+  <div class="footer">Generated by Plan Your Trip India · AI-Powered Travel Planning · ${date}</div>
+</div>
+</body></html>`;
+
+    // Trigger Word download via Blob
+    const blob = new Blob(['\ufeff' + html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${city.replace(/\s+/g,'-')}-Travel-Plan.doc`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    showToast('📄 Word document downloaded! Open with Microsoft Word.', 'success');
 }
 
 function wizDownloadPDF() {
