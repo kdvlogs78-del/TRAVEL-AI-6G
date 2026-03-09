@@ -45,6 +45,7 @@ function useCurrentLocation() {
 
                 if (city) {
                     fromInput.value = city;
+                    wizState.from = city;
                     showToast(`📍 From set to: ${city}`, 'success');
                 } else {
                     fromInput.value = '';
