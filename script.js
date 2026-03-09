@@ -46,6 +46,11 @@ function useCurrentLocation() {
                 if (city) {
                     fromInput.value = city;
                     wizState.from = city;
+                    // Visually pulse the FROM box so user sees it filled
+                    fromInput.style.transition = 'box-shadow 0.3s, border-color 0.3s';
+                    fromInput.style.borderColor = '#ABD1C6';
+                    fromInput.style.boxShadow = '0 0 0 3px rgba(171,209,198,0.35)';
+                    setTimeout(() => { fromInput.style.borderColor = ''; fromInput.style.boxShadow = ''; }, 2500);
                     showToast(`📍 From set to: ${city}`, 'success');
                 } else {
                     fromInput.value = '';
@@ -785,29 +790,49 @@ async function wizGeneratePlan() {
     }
 
     try {
-        // LEAN prompt — no giant example JSON, just a tight schema description
-        const prompt = `Expert India travel planner. Create a ${dur}-day trip to ${dest}${from ? ` from ${from}` : ''}.
-People: ${people}. Budget: ${budgetLabel} (₹${budgetPerPerson.toLocaleString('en-IN')}/person). Style: ${style}. Food: ${foodPref}${dietExtra}.
+        // Build per-day unique slot schema so AI generates distinct spots each day
+        const dayThemes = ['Arrival & Iconic Landmarks','History & Heritage','Nature & Outdoors','Culture & Local Life','Food & Markets','Hidden Gems','Leisure & Departure'];
+        const perDaySchema = Array.from({length: dur}, (_, i) => {
+            const theme = dayThemes[i % dayThemes.length];
+            return `{"day":${i+1},"title":"Day ${i+1} – ${theme}","theme_color":"<unique hex>","spots":[`
+                + `{"order":1,"name":"<UNIQUE place NOT in any other day>","category":"Attraction","emoji":"🏛️","description":"<2 sentences>","time":"9:00 AM","duration":"2 hrs","entry_fee":"<₹X or Free>","tip":"<tip>","travel_to_next":{"mins":15,"mode":"auto","distance":"2km"}},`
+                + `{"order":2,"name":"<2nd UNIQUE place for day ${i+1}>","category":"<Museum/Temple/Fort/Garden>","emoji":"🗺️","description":"<2 sentences>","time":"11:30 AM","duration":"1.5 hrs","entry_fee":"<₹X or Free>","tip":"<tip>","travel_to_next":{"mins":10,"mode":"walk","distance":"800m"}},`
+                + `{"order":3,"name":"<Local food spot unique to day ${i+1}>","category":"Restaurant","emoji":"🍽️","description":"<2 sentences>","time":"1:30 PM","duration":"1 hr","entry_fee":"<₹X avg>","tip":"<tip>","travel_to_next":{"mins":20,"mode":"auto","distance":"3km"}},`
+                + `{"order":4,"name":"<Afternoon attraction unique to day ${i+1}>","category":"<Attraction/Market/Lake>","emoji":"🌇","description":"<2 sentences>","time":"3:30 PM","duration":"1.5 hrs","entry_fee":"<₹X or Free>","tip":"<tip>","travel_to_next":{"mins":15,"mode":"auto","distance":"2km"}},`
+                + `{"order":5,"name":"<Evening spot unique to day ${i+1}>","category":"<Temple/Park/Ghat/Market>","emoji":"🌙","description":"<2 sentences>","time":"6:30 PM","duration":"1 hr","entry_fee":"<₹X or Free>","tip":"<tip>","travel_to_next":null}]}`;
+        }).join(',');
 
-Reply ONLY in JSON. No markdown. Use REAL named places, hotels, trains, buses.
+        const prompt = `You are an expert India travel planner. Create a COMPLETE ${dur}-day itinerary for ${dest}${from ? ` from ${from}` : ''}.
+People: ${people}. Budget: ${budgetLabel} (Rs.${budgetPerPerson.toLocaleString('en-IN')}/person). Style: ${style}. Food: ${foodPref}${dietExtra}.
 
-{"city":"${dest}","tagline":"<1 line>","overview":"<2 sentences>",
-"transport":{"summary":"<1 sentence>","options":[
-{"mode":"Train","icon":"🚂","color":"#3b82f6","routes":[{"name":"<real train name>","number":"<train#>","from":"<station>","to":"<station>","duration":"<Xhr>","fare":"<₹X–₹X SL/3A>","frequency":"<daily/weekly>","departs":"<time>","tip":"<tip>"}]},
-{"mode":"Bus","icon":"🚌","color":"#10b981","routes":[{"name":"<operator e.g. KSRTC>","from":"<stand>","to":"<stand>","duration":"<Xhr>","fare":"<₹X>","frequency":"<daily>","departs":"<time>","tip":"<tip>"}]},
-{"mode":"Flight","icon":"✈️","color":"#8b5cf6","routes":[{"name":"IndiGo/Air India","from":"<airport>","to":"<airport>","duration":"<Xhr>","fare":"<₹X–₹X>","frequency":"Daily","departs":"Multiple","tip":"<tip>"}]}
-],"local_transport":{"options":[{"mode":"Auto","icon":"🛺","cost":"₹X/km","tip":"<tip>"},{"mode":"Local Bus","icon":"🚌","cost":"₹X","tip":"<tip>"},{"mode":"Cab","icon":"🚕","cost":"₹X/km","tip":"<tip>"}]}},
+STRICT RULES:
+1. Reply ONLY in valid JSON. No markdown, no code fences, no text outside JSON.
+2. Every day MUST have EXACTLY 5 spots. All ${dur * 5} spots must be UNIQUE place names — no repeats across any day.
+3. All places, hotels, trains, buses must be REAL and actually exist in ${dest}.
+4. budget_per_person values must be plain integers in INR (no Rs symbol, no commas).
+
+{"city":"${dest}","tagline":"<punchy 1-line about ${dest}>","overview":"<2 vivid sentences about this ${dur}-day trip>",
+"transport":{"summary":"<how to reach ${dest}${from ? ' from ' + from : ''}>","options":[
+{"mode":"Train","icon":"🚂","color":"#3b82f6","routes":[{"name":"<REAL train name>","number":"<number>","from":"<origin station>","to":"<${dest} station>","duration":"<Xhr Xm>","fare":"<Rs.X-X SL/3A>","frequency":"<X daily>","departs":"<HH:MM>","tip":"<tip>"}]},
+{"mode":"Bus","icon":"🚌","color":"#10b981","routes":[{"name":"<REAL operator>","from":"<origin stand>","to":"<${dest} stand>","duration":"<Xhr>","fare":"<Rs.X-X>","frequency":"Multiple daily","departs":"Morning and Night","tip":"<tip>"}]},
+{"mode":"Flight","icon":"✈️","color":"#8b5cf6","routes":[{"name":"IndiGo / Air India","from":"<origin airport>","to":"<nearest airport to ${dest}>","duration":"<Xhr>","fare":"<Rs.X-X>","frequency":"Daily","departs":"Multiple","tip":"<tip>"}]}
+],"local_transport":{"options":[
+{"mode":"Auto-rickshaw","icon":"🛺","cost":"Rs.X/km","tip":"<tip>"},
+{"mode":"Local Bus","icon":"🚌","cost":"Rs.X-X","tip":"<tip>"},
+{"mode":"Cab / Ola / Uber","icon":"🚕","cost":"Rs.X/km","tip":"<tip>"}
+]}},
 "hotels":[
-{"name":"<REAL hotel>","type":"Luxury","area":"<area>","address":"<address>","price_per_night":"₹X","price_range":"₹X–₹X","rating":"4.5","stars":4,"amenities":["Pool","Spa","WiFi"],"distance_from_center":"Xkm","why":"<reason>","book_via":"MakeMyTrip"},
-{"name":"<REAL hotel>","type":"Mid-range","area":"<area>","address":"<address>","price_per_night":"₹X","price_range":"₹X–₹X","rating":"4.0","stars":3,"amenities":["AC","WiFi"],"distance_from_center":"Xkm","why":"<reason>","book_via":"Booking.com"},
-{"name":"<REAL hotel>","type":"Budget","area":"<area>","address":"<address>","price_per_night":"₹X","price_range":"₹X–₹X","rating":"3.8","stars":2,"amenities":["WiFi","AC"],"distance_from_center":"Xkm","why":"<reason>","book_via":"OYO"}
+{"name":"<REAL luxury hotel in ${dest}>","type":"Luxury","area":"<area>","address":"<address>","price_per_night":"Rs.X","price_range":"Rs.X-X","rating":"4.6","stars":5,"amenities":["Pool","Spa","Restaurant","WiFi","AC"],"distance_from_center":"Xkm","why":"<reason>","book_via":"MakeMyTrip"},
+{"name":"<REAL mid-range hotel in ${dest}>","type":"Mid-range","area":"<area>","address":"<address>","price_per_night":"Rs.X","price_range":"Rs.X-X","rating":"4.1","stars":3,"amenities":["AC","WiFi","Restaurant"],"distance_from_center":"Xkm","why":"<reason>","book_via":"Booking.com"},
+{"name":"<REAL budget hotel in ${dest}>","type":"Budget","area":"<area>","address":"<address>","price_per_night":"Rs.X","price_range":"Rs.X-X","rating":"3.8","stars":2,"amenities":["WiFi","AC","Hot Water"],"distance_from_center":"Xkm","why":"<reason>","book_via":"OYO"}
 ],
-"days":[${Array.from({length: dur}, (_, i) => `{"day":${i+1},"title":"<theme>","theme_color":"<hex>","spots":[{"order":1,"name":"<REAL place>","category":"Attraction","emoji":"🏛️","description":"<2 sentences>","time":"9:00 AM","duration":"1.5 hrs","entry_fee":"₹50","tip":"<tip>","travel_to_next":{"mins":10,"mode":"walk","distance":"600m"}}]}`).join(',')}],
-"budget_per_person":{"accommodation":N,"food":N,"transport":N,"activities":N},
-"best_time":"<months>","local_tips":["<tip1>","<tip2>","<tip3>"],
-"emergency":{"police":"100","tourist_helpline":"1800-111-363","hospital":"<name>"}}
+"days":[${perDaySchema}],
+"budget_per_person":{"accommodation":0,"food":0,"transport":0,"activities":0},
+"best_time":"<best months to visit ${dest}>",
+"local_tips":["<tip1>","<tip2>","<tip3>","<tip4>"],
+"emergency":{"police":"100","tourist_helpline":"1800-111-363","hospital":"<real hospital in ${dest}>"}}
 
-Rules: Each day 4-5 spots. All spots/hotels/trains REAL. Numbers as integers in INR.`;
+FINAL CHECK: The days array must have EXACTLY ${dur} objects. Each with EXACTLY 5 spots. Zero repeated spot names. Return ONLY the JSON.`;
 
         const response = await callGroqAI([{ role: 'user', content: prompt }]);
         finishLoading();
@@ -901,6 +926,33 @@ function wizBuildFallback(destination, days, cityData) {
         local_tips: [`Carry cash — many local shops don't accept cards in ${destination}.`, 'Dress modestly when visiting temples and religious sites.', 'Download offline maps before you travel.'],
         emergency: { police: '100', tourist_helpline: '1800-111-363', hospital: `District Hospital, ${destination}` }
     };
+}
+
+
+// ── Booking URL map ──────────────────────────────────────────────
+const BOOKING_URLS = {
+    train:   'https://www.irctc.co.in/nget/train-search',
+    bus:     'https://www.redbus.in',
+    flight:  'https://www.makemytrip.com/flights/',
+    MakeMyTrip:  'https://www.makemytrip.com/hotels/',
+    'Booking.com':'https://www.booking.com',
+    OYO:         'https://www.oyorooms.com',
+    Goibibo:     'https://www.goibibo.com/hotels/',
+    Agoda:       'https://www.agoda.com',
+    Airbnb:      'https://www.airbnb.com',
+    Treebo:      'https://www.treebo.com',
+    FabHotels:   'https://www.fabhotels.com',
+};
+function getBookingUrl(key) {
+    return BOOKING_URLS[key] || 'https://www.makemytrip.com/hotels/';
+}
+function getTransportUrl(mode) {
+    if (!mode) return '#';
+    const m = mode.toLowerCase();
+    if (m.includes('train')) return BOOKING_URLS.train;
+    if (m.includes('bus'))   return BOOKING_URLS.bus;
+    if (m.includes('flight') || m.includes('air')) return BOOKING_URLS.flight;
+    return '#';
 }
 
 function wizRenderResults(plan, destination, duration) {
@@ -1121,6 +1173,9 @@ function wizRenderResults(plan, destination, duration) {
                 ${r.frequency ? `<span class="nr-route-chip">📅 ${r.frequency}</span>` : ''}
               </div>
               ${r.tip ? `<div class="nr-route-tip">💡 ${r.tip}</div>` : ''}
+              <a href="${getTransportUrl(opt.mode)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:7px 14px;background:${opt.color||'#3b82f6'}18;border:1px solid ${opt.color||'#3b82f6'}44;border-radius:8px;color:${opt.color||'#3b82f6'};font-size:0.75rem;font-weight:700;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.background='${opt.color||'#3b82f6'}30'" onmouseout="this.style.background='${opt.color||'#3b82f6'}18'">
+                ${opt.mode==='Train'?'🚂 Book on IRCTC':opt.mode==='Bus'?'🚌 Book on RedBus':'✈️ Search Flights'} ↗
+              </a>
             </div>`).join('')}
           </div>`).join('')}
           ${t.local_transport && t.local_transport.options ? `
@@ -1157,7 +1212,7 @@ function wizRenderResults(plan, destination, duration) {
               ${h.why ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;font-style:italic;">✦ ${h.why}</div>` : ''}
               <div class="nr-hotel-footer">
                 <div><div class="nr-hotel-price">₹${h.price_per_night || ''}<span>/night</span></div>${h.price_range?`<div style="font-size:0.65rem;color:var(--text-dim);">${h.price_range}</div>`:''}</div>
-                ${h.book_via?`<div class="nr-hotel-book">Book via<br><strong style="color:var(--uv)">${h.book_via}</strong></div>`:''}
+                ${h.book_via?`<a href="${getBookingUrl(h.book_via)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:var(--uv-mist);border:1px solid var(--lc-border);border-radius:8px;color:var(--uv);font-size:0.72rem;font-weight:700;text-decoration:none;">🔗 ${h.book_via} ↗</a>`:''}
               </div>
             </div>`;}).join('')}
       </div>
