@@ -814,10 +814,10 @@ The budget_per_person totals MUST add up to approximately ${budgetPerPerson} —
 
 STRICT RULES:
 1. Reply ONLY in valid JSON. No markdown, no code fences, no text outside JSON.
-2. Every day MUST have EXACTLY 5 spots. All ${dur * 5} spots must be UNIQUE place names — no repeats across any day.
-3. ALL places, hotels, trains, buses MUST be REAL, Google Maps verified, and actually exist in ${dest}. Use official attraction names exactly as they appear on Google Maps (e.g. "Amber Fort" not "Amer Fort Palace", "Basilica of Bom Jesus" not "Bom Jesus Church"). Hotels must be real bookable properties.
+2. Every day MUST have EXACTLY 5 spots. CRITICAL: ALL ${dur * 5} spot names across ALL days must be 100% UNIQUE — absolutely NO place name may appear more than once in the entire itinerary. Each day visits completely different places.
+3. ALL places, hotels, trains, buses MUST be REAL, Google Maps verified, and actually exist in ${dest}. Use official names exactly as on Google Maps. Hotels must be real bookable properties.
 4. budget_per_person values must be plain integers in INR (no Rs symbol, no commas).
-5. For attraction names: use the exact Google Maps name. Include well-known landmarks, museums, temples, parks, markets, and restaurants that are rated 4+ stars on Google Maps for ${dest}.
+5. UNIQUENESS CHECK: Before returning, verify that no spot name from day 1 appears in days 2-${dur}, no spot from day 2 appears in days 3-${dur}, etc. If any duplicate exists, replace it with a different real place in ${dest}.
 
 {"city":"${dest}","tagline":"<punchy 1-line about ${dest}>","overview":"<2 vivid sentences about this ${dur}-day trip>",
 "transport":{"summary":"<how to reach ${dest}${from ? ' from ' + from : ''}>","options":[
@@ -865,6 +865,36 @@ FINAL CHECK: The days array must have EXACTLY ${dur} objects. Each with EXACTLY 
             const existing = planData.days || [];
             const extra = fallbackForFill.days.slice(existing.length, dur);
             planData.days = [...existing, ...extra];
+        }
+
+        // ── DEDUPLICATION: ensure every spot name is unique across all days ──
+        if (planData.days) {
+            const seenSpotNames = new Set();
+            const fallbackSpotPool = fallbackForFill.days.flatMap(d => d.spots);
+            let fallbackIdx = 0;
+            planData.days.forEach(day => {
+                if (!day.spots) return;
+                day.spots = day.spots.map(spot => {
+                    const nameKey = (spot.name || '').toLowerCase().trim();
+                    if (!nameKey || seenSpotNames.has(nameKey)) {
+                        // Replace duplicate with a fallback spot not yet used
+                        while (fallbackIdx < fallbackSpotPool.length) {
+                            const fb = fallbackSpotPool[fallbackIdx++];
+                            const fbKey = (fb.name || '').toLowerCase().trim();
+                            if (!seenSpotNames.has(fbKey)) {
+                                seenSpotNames.add(fbKey);
+                                return { ...spot, name: fb.name, emoji: fb.emoji, description: fb.description, tip: fb.tip };
+                            }
+                        }
+                        // If fallback pool exhausted, generate a unique placeholder
+                        const uniqueName = `${dest} Attraction ${seenSpotNames.size + 1}`;
+                        seenSpotNames.add(uniqueName.toLowerCase());
+                        return { ...spot, name: uniqueName };
+                    }
+                    seenSpotNames.add(nameKey);
+                    return spot;
+                });
+            });
         }
 
         // ── Enforce correct budget: override AI budget to match actual user budget ──
@@ -1546,7 +1576,7 @@ function wizDownloadWord() {
 }
 
 function wizDownloadPDF() {
-    const btn = document.querySelector('.wiz-btn-pdf[onclick*="wizDownloadPDF"]') || document.querySelector('.wiz-btn-pdf');
+    const btn = document.querySelector('.wiz-btn-pdf');
     if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Generating…'; }
 
     const { plan, destination, duration, total, budgetLabel, foodLabel } = window._lastPlanData || {};
