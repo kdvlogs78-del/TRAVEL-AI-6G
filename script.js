@@ -32,6 +32,7 @@ function useCurrentLocation() {
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             const { latitude, longitude } = position.coords;
+            let locationLabel = '';
             try {
                 const res = await fetch(
                     `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10&addressdetails=1`
@@ -41,17 +42,21 @@ function useCurrentLocation() {
                 const city = addr.city
                     || addr.town
                     || addr.municipality
+                    || addr.village
+                    || addr.county
                     || '';
+                const state = addr.state || addr.state_district || '';
+                locationLabel = city && state ? `${city}, ${state}` : city || state || '';
 
-                if (city) {
-                    fromInput.value = city;
-                    wizState.from = city;
+                if (locationLabel) {
+                    fromInput.value = locationLabel;
+                    wizState.from = locationLabel;
                     // Visually pulse the FROM box so user sees it filled
                     fromInput.style.transition = 'box-shadow 0.3s, border-color 0.3s';
                     fromInput.style.borderColor = '#ABD1C6';
                     fromInput.style.boxShadow = '0 0 0 3px rgba(171,209,198,0.35)';
                     setTimeout(() => { fromInput.style.borderColor = ''; fromInput.style.boxShadow = ''; }, 2500);
-                    showToast(`📍 From set to: ${city}`, 'success');
+                    showToast(`📍 Location detected: ${locationLabel}`, 'success');
                 } else {
                     fromInput.value = '';
                     showToast('📍 Could not detect city. Please type it manually.', 'error');
@@ -61,8 +66,8 @@ function useCurrentLocation() {
                 showToast('📍 Location error. Please type your city.', 'error');
             }
             btn.classList.remove('loading');
-            btnText.textContent = '✓ City Detected';
-            setTimeout(() => { btnText.textContent = '📍 Detect My City (sets From)'; }, 3000);
+            btnText.textContent = locationLabel ? `✓ ${locationLabel}` : '✓ Location Detected';
+            setTimeout(() => { btnText.textContent = '📍 Detect My City (sets From)'; }, 4000);
         },
         (err) => {
             btn.classList.remove('loading');
@@ -803,15 +808,16 @@ async function wizGeneratePlan() {
                 + `{"order":5,"name":"<Evening spot unique to day ${i+1}>","category":"<Temple/Park/Ghat/Market>","emoji":"🌙","description":"<2 sentences>","time":"6:30 PM","duration":"1 hr","entry_fee":"<₹X or Free>","tip":"<tip>","travel_to_next":null}]}`;
         }).join(',');
 
-        const prompt = `You are an expert India travel planner. Create a COMPLETE ${dur}-day itinerary for ${dest}${from ? ` from ${from}` : ''}.
+        const prompt = `You are an expert India travel planner with deep knowledge of Google Maps verified attractions. Create a COMPLETE ${dur}-day itinerary for ${dest}${from ? ` from ${from}` : ''}.
 People: ${people}. STRICT BUDGET: Rs.${budgetPerPerson.toLocaleString('en-IN')} TOTAL per person for the whole trip (Rs.${perDayBudget}/person/day). Style: ${style}. Food: ${foodPref}${dietExtra}.
 The budget_per_person totals MUST add up to approximately ${budgetPerPerson} — do NOT exceed this.
 
 STRICT RULES:
 1. Reply ONLY in valid JSON. No markdown, no code fences, no text outside JSON.
 2. Every day MUST have EXACTLY 5 spots. All ${dur * 5} spots must be UNIQUE place names — no repeats across any day.
-3. All places, hotels, trains, buses must be REAL and actually exist in ${dest}.
+3. ALL places, hotels, trains, buses MUST be REAL, Google Maps verified, and actually exist in ${dest}. Use official attraction names exactly as they appear on Google Maps (e.g. "Amber Fort" not "Amer Fort Palace", "Basilica of Bom Jesus" not "Bom Jesus Church"). Hotels must be real bookable properties.
 4. budget_per_person values must be plain integers in INR (no Rs symbol, no commas).
+5. For attraction names: use the exact Google Maps name. Include well-known landmarks, museums, temples, parks, markets, and restaurants that are rated 4+ stars on Google Maps for ${dest}.
 
 {"city":"${dest}","tagline":"<punchy 1-line about ${dest}>","overview":"<2 vivid sentences about this ${dur}-day trip>",
 "transport":{"summary":"<how to reach ${dest}${from ? ' from ' + from : ''}>","options":[
@@ -1336,8 +1342,7 @@ function wizRenderResults(plan, destination, duration) {
       <button class="wiz-btn-back" onclick="wizReset()">← Plan Another Trip</button>
       <span class="wiz-step-count">✦ AI Plan Ready</span>
       <div style="display:flex;gap:8px;">
-        <button class="wiz-btn-next wiz-btn-pdf" onclick="wizDownloadWord()" style="background:linear-gradient(135deg,#2b579a,#1e3f7a);gap:6px;">📄 Word (.docx)</button>
-        <button class="wiz-btn-next wiz-btn-pdf" onclick="wizDownloadPDF()">⬇ PDF</button>
+        <button class="wiz-btn-next wiz-btn-pdf" onclick="wizDownloadPDF()">⬇ Download PDF</button>
       </div>`;
 
     document.getElementById('wizResultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1541,7 +1546,7 @@ function wizDownloadWord() {
 }
 
 function wizDownloadPDF() {
-    const btn = document.querySelector('.wiz-btn-pdf');
+    const btn = document.querySelector('.wiz-btn-pdf[onclick*="wizDownloadPDF"]') || document.querySelector('.wiz-btn-pdf');
     if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Generating…'; }
 
     const { plan, destination, duration, total, budgetLabel, foodLabel } = window._lastPlanData || {};
