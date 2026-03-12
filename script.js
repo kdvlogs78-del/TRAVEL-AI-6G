@@ -3613,7 +3613,6 @@ function removeTyping(id) {
     const el = document.getElementById(id);
     if (el) el.remove();
 }
-
 // ═══════════════════════════════════════════════════════════════
 //  GROQ AI — Direct browser API (works on GitHub Pages!)
 //  ✅ No backend server needed — calls Groq directly
